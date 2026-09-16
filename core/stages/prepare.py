@@ -8,6 +8,7 @@ from core.context import RunContext
 from core.events import Code, Kind, Stage
 from core.job import Job
 from core.media import build_filters, extract_audio
+from core.profile import TARGET_AUDIO
 
 
 def run(job: Job, ctx: RunContext) -> Path:
@@ -22,7 +23,7 @@ def run(job: Job, ctx: RunContext) -> Path:
               filters=filters, loudnorm=job.profile.loudnorm, denoise=job.profile.denoise,
               trim_silence=job.profile.trim_silence, track=job.profile.track)
 
-    target = ctx.paths.temp / f"{job.stem}_16k.wav"
+    target = _destination(job, ctx)
     step = max(job.profile.progress_step_min, 1.0) * 60
     last = {"at": -step}
     started = time.monotonic()
@@ -45,8 +46,29 @@ def run(job: Job, ctx: RunContext) -> Path:
         should_cancel=ctx.should_cancel,
     )
 
-    job.artifacts["temp_wav"] = target
+    # Промежуточный файл уборка потом уберёт, результат — не тронет.
+    job.artifacts["audio" if job.profile.target == TARGET_AUDIO else "temp_wav"] = target
     ctx.event(Kind.INFO, Stage.PREPARE, Code.AUDIO_READY,
               path=str(target), size=target.stat().st_size,
               seconds=round(time.monotonic() - started, 1))
+    return target
+
+
+def _destination(job: Job, ctx: RunContext) -> Path:
+    """Куда класть звук.
+
+    Для распознавания это промежуточный файл во временной папке: уборка
+    его удалит, и правильно сделает. Но когда человек просил именно звук
+    (FR-8), этот файл и есть результат — он ложится рядом с документами и
+    уборку переживает. Раньше разницы не было, и сценарий «только звук»
+    заканчивался словами «готово» над пустой папкой.
+    """
+    if job.profile.target != TARGET_AUDIO:
+        return ctx.paths.temp / f"{job.stem}_16k.wav"
+
+    job.output_dir.mkdir(parents=True, exist_ok=True)
+    target = job.output(".wav")
+    if target == job.source:
+        # Исходник — уже wav и лежит там же, куда мы собрались писать.
+        target = job.output("-16k.wav")
     return target
