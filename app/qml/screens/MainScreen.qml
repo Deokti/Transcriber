@@ -27,9 +27,9 @@ Item {
 
             Item { Layout.fillWidth: true }
 
-            AppButton { text: "Хранилище" }
-            AppButton { text: "Диагностика" }
-            AppButton { text: "Настройки" }
+            AppButton { text: "Хранилище"; flat_: true }
+            AppButton { text: "Диагностика"; flat_: true }
+            AppButton { text: "Настройки"; flat_: true }
         }
 
         // --- пусто или очередь -----------------------------------------

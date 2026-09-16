@@ -48,6 +48,12 @@ ColumnLayout {
             border.width: 1
             border.color: combo.hovered && combo.enabled ? Theme.lineStrong : Theme.line
             Behavior on border.color { ColorAnimation { duration: Theme.fast } }
+
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.NoButton
+                cursorShape: combo.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+            }
         }
 
         indicator: Canvas {
@@ -84,6 +90,11 @@ ColumnLayout {
             background: Rectangle {
                 color: parent.hovered ? Qt.rgba(Theme.accent.r, Theme.accent.g,
                                                 Theme.accent.b, 0.12) : "transparent"
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.NoButton
+                    cursorShape: Qt.PointingHandCursor
+                }
             }
         }
 

@@ -43,6 +43,12 @@ CheckBox {
         }
     }
 
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.NoButton
+        cursorShape: control.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+    }
+
     contentItem: Text {
         text: control.text
         font: control.font
