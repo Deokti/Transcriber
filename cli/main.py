@@ -19,26 +19,32 @@ from pathlib import Path
 from cli import messages
 from core import platform
 from core.asr.faster_whisper_backend import FasterWhisperBackend
-from core.context import RunContext
 from core.events import Code, CoreError, Event, Kind
 from core.job import Job, JobState
 from core.media import MEDIA_EXT, ensure_tools
-from core.pipeline import run_job
+from core.runner import JobRunner
 from core.settings import Settings
 from core.profile import (LAYOUT_PLAIN, LAYOUT_TIMECODES, TARGET_AUDIO, TARGET_TEXT,
                           TEMP_DELETE, TEMP_KEEP, TEMP_MOVE, Profile)
 from core.timecode import hms
 
-_cancel = False
+_runner: "JobRunner | None" = None
+_presses = 0
 
 
 def _on_sigint(_signum, _frame) -> None:
-    """Первый Ctrl+C — мягкая отмена, второй — выход немедленно."""
-    global _cancel
-    if _cancel:
+    """Три уровня, те же, что в окне: доработать файл, прервать, выйти."""
+    global _presses
+    _presses += 1
+    if _runner is None or _presses >= 3:
         sys.exit(130)
-    _cancel = True
-    print("\n[!] отмена: доработаю текущий шаг и остановлюсь, ещё раз Ctrl+C — выйти сразу")
+    if _presses == 1:
+        _runner.stop_after_current()
+        print("\n[!] доработаю текущий файл и остановлюсь.\n"
+              "    ещё раз Ctrl+C — прервать сейчас, посчитанное сохранится")
+    else:
+        _runner.cancel_all()
+        print("\n[!] прерываю. Досохраняю посчитанное, ещё раз Ctrl+C — выйти немедленно")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -211,20 +217,20 @@ def main(argv: list[str] | None = None) -> int:
     print(f"[i] данные: {paths.root}")
     print(f"[i] модели: {models_dir}")
 
+    global _runner
     backend = FasterWhisperBackend(models_dir)
-    ctx = RunContext(paths=paths, tools=tools, backend=backend, emit=say,
-                     should_cancel=lambda: _cancel)
+    _runner = JobRunner(paths=paths, tools=tools, backend=backend, emit=say)
+    _runner.add(*(Job(source=path, profile=profile) for path in files))
 
     started = time.monotonic()
-    jobs: list[Job] = []
-    for path in files:
-        if _cancel:
-            break
-        jobs.append(run_job(Job(source=path, profile=profile), ctx))
+    _runner.start()
+    while _runner.busy:
+        # Ждём короткими отрезками: сплошной join на Windows глушит Ctrl+C
+        _runner.join(0.2)
 
-    _summary(jobs, time.monotonic() - started)
+    _summary(_runner.finished, time.monotonic() - started)
     logfile.close()
-    return 1 if any(j.state is JobState.FAILED for j in jobs) else 0
+    return 1 if any(j.state is JobState.FAILED for j in _runner.finished) else 0
 
 
 def _summary(jobs: list[Job], seconds: float) -> None:

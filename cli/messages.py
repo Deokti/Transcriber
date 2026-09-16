@@ -42,6 +42,17 @@ def render(e: Event) -> str | None:
     d = e.data
     stage = STAGE_NAMES.get(e.stage, "")
 
+    if e.kind is Kind.QUEUE_STARTED:
+        return f"В очереди {d['total']} файл(ов)"
+
+    if e.kind is Kind.QUEUE_DONE:
+        parts = [f"готово {d['done']}"]
+        for key, word in (("skipped", "пропущено"), ("failed", "ошибок"),
+                          ("cancelled", "отменено")):
+            if d.get(key):
+                parts.append(f"{word} {d[key]}")
+        return f"Очередь закончена за {d['seconds']/60:.1f} мин: " + ", ".join(parts)
+
     if e.kind is Kind.JOB_STARTED:
         return f"=== {d['name']} — стадий: {len(d['stages'])}"
 
@@ -136,6 +147,16 @@ def _by_code(e: Event, d: dict, stage: str) -> str | None:
     if code == Code.OUTPUT_EXISTS:
         return (f"{prefix}пропуск {d['name']}: {', '.join(d['formats'])} уже есть "
                 f"(--force чтобы перезаписать)")
+
+    if code == Code.STOP_REQUESTED:
+        return f"{prefix}доработаю {d.get('current') or 'текущий файл'}, в очереди ещё {d['pending']}"
+    if code == Code.CANCEL_REQUESTED:
+        return f"{prefix}прерываю, сохраняю посчитанное"
+    if code == Code.STOP_UNDONE:
+        return f"{prefix}продолжаю работу, в очереди {d['pending']}"
+    if code == Code.PARTIAL_SAVED:
+        return (f"{prefix}сохранено посчитанное: {d['segments']} сегментов, "
+                f"{hms(d['position'])} из {hms(d['total'])}")
 
     if code == Code.CUDA_READY:
         return f"{prefix}CUDA готова: библиотек загружено {d['loaded']}"
