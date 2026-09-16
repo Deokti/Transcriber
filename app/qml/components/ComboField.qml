@@ -11,6 +11,9 @@ ColumnLayout {
     property alias model: combo.model
     property alias currentIndex: combo.currentIndex
     property string hint: ""              // почему пункт недоступен или что он значит
+    // Поле бывает узким — в строке очереди, — а выбирать надо по полному
+    // тексту. Ноль значит «список по ширине поля».
+    property int popupWidth: 0
     property bool enabled_: true
 
     // Работа по кодам, а не по номеру пункта. Номер привязан к списку надписей,
@@ -36,6 +39,9 @@ ColumnLayout {
 
     Text {
         id: caption
+        // Без подписи поле бывает в строке списка: пустой Text всё равно
+        // занял бы высоту строки и сдвинул поле вниз.
+        visible: text !== ""
         color: root.enabled_ ? Theme.textMuted : Theme.textDisabled
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSmall
@@ -120,7 +126,7 @@ ColumnLayout {
         }
 
         delegate: ItemDelegate {
-            width: combo.width
+            width: ListView.view ? ListView.view.width : combo.width
             height: Theme.hField
             enabled: !(modelData !== undefined && modelData.disabled === true)
             contentItem: Text {
@@ -140,7 +146,7 @@ ColumnLayout {
 
         popup: Popup {
             y: combo.height + 2
-            width: combo.width
+            width: root.popupWidth > 0 ? Math.max(root.popupWidth, combo.width) : combo.width
             implicitHeight: Math.min(contentItem.implicitHeight + 8, 260)
             padding: 4
             contentItem: ListView {

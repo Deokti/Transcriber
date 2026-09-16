@@ -15,12 +15,42 @@ Item {
 
     signal openSettings()
 
-    property var files: []
-    property bool hasFiles: files.length > 0
+    // Очередь живёт в мосте: окно её показывает, но не хранит.
+    readonly property bool hasFiles: Queue.count > 0
 
     FolderDialog {
         id: outputPicker
         onAccepted: Task.setOutputDir(selectedFolder)
+    }
+
+    FileDialog {
+        id: filePicker
+        title: I18n.strings["action.chooseFiles"]
+        fileMode: FileDialog.OpenFiles
+        // Первый фильтр — привычные расширения, второй оставляет лазейку:
+        // тип определяется по содержимому (FR-1), и запись с чужим
+        // расширением всё равно можно выбрать вручную.
+        nameFilters: [
+            I18n.strings["dialog.media"] + " ("
+                + Queue.extensions.map(function (e) { return "*" + e }).join(" ") + ")",
+            I18n.strings["dialog.allFiles"] + " (*)"
+        ]
+        onAccepted: Queue.add(selectedFiles)
+    }
+
+    FolderDialog {
+        id: sourcePicker
+        title: I18n.strings["action.chooseFolder"]
+        onAccepted: Queue.addFolder(selectedFolder)
+    }
+
+    // Перетаскивание ловит всё окно, а не отведённый квадрат: человек
+    // бросает файл туда, куда смотрит.
+    DropArea {
+        id: dropZone
+        anchors.fill: parent
+        onEntered: function (drag) { drag.accepted = drag.hasUrls }
+        onDropped: function (drop) { if (drop.hasUrls) Queue.add(drop.urls) }
     }
 
     ColumnLayout {
@@ -47,7 +77,10 @@ Item {
                 anchors.rightMargin: Theme.gapPanels
                 spacing: Theme.gapButtons
 
-                AppButton { text: I18n.strings["action.chooseFiles"] }
+                AppButton {
+                    text: I18n.strings["action.chooseFiles"]
+                    onClicked: filePicker.open()
+                }
 
                 Item { Layout.fillWidth: true }
 
@@ -73,7 +106,9 @@ Item {
             Panel {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 150
-                visible: !screen.hasFiles
+                // С очередью панель занимает всё свободное место: список
+                // растёт вниз, проверка готовности остаётся справа.
+                Layout.fillHeight: screen.hasFiles
 
                 RowLayout {
                     anchors.fill: parent
@@ -83,6 +118,7 @@ Item {
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignVCenter
+                        visible: !screen.hasFiles
                         spacing: Theme.gapButtons
 
                         SectionTitle {
@@ -100,8 +136,64 @@ Item {
                         }
                         RowLayout {
                             spacing: Theme.gapButtons
-                            AppButton { text: I18n.strings["action.chooseFiles"]; primary: true }
-                            AppButton { text: I18n.strings["action.chooseFolder"] }
+                            AppButton {
+                                text: I18n.strings["action.chooseFiles"]
+                                primary: true
+                                onClicked: filePicker.open()
+                            }
+                            AppButton {
+                                text: I18n.strings["action.chooseFolder"]
+                                onClicked: sourcePicker.open()
+                            }
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        visible: screen.hasFiles
+                        spacing: Theme.gapButtons
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.gapButtons
+
+                            SectionTitle { text: I18n.strings["queue.title"] }
+                            Text {
+                                text: Fmt.duration(Queue.totalDuration) + " · "
+                                      + Fmt.fileSize(Queue.totalSize)
+                                color: Theme.textMuted
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSmall
+                            }
+                            Item { Layout.fillWidth: true }
+                            AppButton {
+                                text: I18n.strings["action.addQueue"]
+                                flat_: true
+                                Layout.preferredHeight: Theme.hRowButton
+                                onClicked: filePicker.open()
+                            }
+                            AppButton {
+                                text: I18n.strings["queue.clear"]
+                                flat_: true
+                                Layout.preferredHeight: Theme.hRowButton
+                                onClicked: Queue.clear()
+                            }
+                        }
+
+                        ListView {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            clip: true
+                            model: Queue.files
+                            boundsBehavior: Flickable.StopAtBounds
+                            delegate: FileRow {
+                                width: ListView.view.width
+                                entry: modelData
+                                position: index
+                                onRemoveRequested: Queue.remove(index)
+                                onTrackChosen: function (track) { Queue.setTrack(index, track) }
+                            }
                         }
                     }
 
@@ -392,7 +484,10 @@ Item {
                 }
             }
 
-            Item { Layout.fillHeight: true }
+            Item {
+                Layout.fillHeight: true
+                visible: !screen.hasFiles
+            }
         }
 
         // --- подвал -----------------------------------------------------
@@ -416,13 +511,18 @@ Item {
                 ColumnLayout {
                     spacing: 2
                     Text {
-                        text: screen.hasFiles ? "" : I18n.strings["main.noFiles"]
+                        text: screen.hasFiles
+                            ? I18n.strings["queue.summary"].arg(Queue.count)
+                            : I18n.strings["main.noFiles"]
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontBase
                     }
                     Text {
-                        text: screen.hasFiles ? "" : I18n.strings["main.noFilesHint"]
+                        text: screen.hasFiles
+                            ? Fmt.duration(Queue.totalDuration) + " · "
+                              + Fmt.fileSize(Queue.totalSize)
+                            : I18n.strings["main.noFilesHint"]
                         color: Theme.textMuted
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSmall
@@ -436,7 +536,9 @@ Item {
                     text: screen.hasFiles ? I18n.strings["action.start"]
                                           : I18n.strings["action.startDisabled"]
                     primary: true
-                    enabled: screen.hasFiles
+                    // Пока файлы разбираются, длительности неизвестны —
+                    // запускать рано.
+                    enabled: Queue.readyCount > 0 && !Queue.reading
                 }
             }
         }
