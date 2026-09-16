@@ -18,6 +18,24 @@ QML_DIR = HERE / "qml"
 ICON_DIR = HERE / "icons"
 
 
+def _claim_own_identity() -> None:
+    """Просит Windows считать нас отдельным приложением.
+
+    Панель задач берёт значок не у окна, а у процесса. Пока процесс — это
+    python.exe, там будет логотип Python, сколько окну значков ни ставь.
+    Собственный идентификатор разрывает эту связь: система заводит нам свою
+    ячейку в панели и берёт значок из окна.
+    """
+    if not sys.platform.startswith("win"):
+        return
+    import ctypes
+
+    try:
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Transcriber.Desktop")
+    except Exception:
+        pass   # не вышло — значок будет питоновский, но работать это не мешает
+
+
 def _app_icon() -> QIcon:
     """Значок окна и панели задач.
 
@@ -53,6 +71,7 @@ def _load_dev_fonts() -> None:
 
 def main(argv: list[str] | None = None) -> int:
     argv = list(argv if argv is not None else sys.argv[1:])
+    _claim_own_identity()
 
     # Служебный режим для разработки: отрисовать окно и сохранить картинку.
     forced_theme = ""
