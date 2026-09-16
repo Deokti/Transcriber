@@ -17,6 +17,12 @@ Item {
 
     // Очередь живёт в мосте: окно её показывает, но не хранит.
     readonly property bool hasFiles: Queue.count > 0
+    // Выбранной модели нет на диске: работа начнётся со скачивания, и
+    // кнопка обязана сказать об этом заранее — так в макете.
+    readonly property bool needsDownload: Env.downloadedModels.indexOf(Task.model) < 0
+    readonly property var chosenModel: Env.models.filter(function (m) {
+        return m.id === Task.model
+    })[0]
 
 
     FolderDialog {
@@ -524,11 +530,18 @@ Item {
                     Text {
                         text: Run.failure.code !== undefined
                             ? Fmt.noticeText(Run.failure)
+                            : screen.needsDownload && screen.hasFiles
+                            ? I18n.strings["main.modelWillDownload"]
+                                  .arg(Task.model)
+                                  .arg(Fmt.fileSize((screen.chosenModel
+                                       ? screen.chosenModel.size_mb : 0) * 1024 * 1024))
                             : screen.hasFiles
                             ? Fmt.duration(Queue.totalDuration) + " · "
                               + Fmt.fileSize(Queue.totalSize)
                             : I18n.strings["main.noFilesHint"]
-                        color: Run.failure.code !== undefined ? Theme.errorFg : Theme.textMuted
+                        color: Run.failure.code !== undefined ? Theme.errorFg
+                             : screen.needsDownload && screen.hasFiles ? Theme.warnFg
+                             : Theme.textMuted
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSmall
                     }
@@ -538,8 +551,9 @@ Item {
 
                 AppButton { text: I18n.strings["action.savePreset"] }
                 AppButton {
-                    text: screen.hasFiles ? I18n.strings["action.start"]
-                                          : I18n.strings["action.startDisabled"]
+                    text: !screen.hasFiles ? I18n.strings["action.startDisabled"]
+                        : screen.needsDownload ? I18n.strings["action.downloadAndStart"]
+                        : I18n.strings["action.start"]
                     primary: true
                     // Пока файлы разбираются, длительности неизвестны —
                     // запускать рано.

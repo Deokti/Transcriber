@@ -165,5 +165,7 @@
   "run.never": "Nothing has been run yet",
   "run.loadingModel": "loading model %1 — usually about a minute",
   "run.cancellingFor": "Stopping, saving what has been computed · %1",
-  "run.cancellingLoad": "Waiting for the model to load: it cannot be interrupted midway · %1"
+  "run.cancellingLoad": "Waiting for the model to load: it cannot be interrupted midway · %1",
+  "action.downloadAndStart": "Download and start",
+  "main.modelWillDownload": "Model %1 has not been downloaded yet — %2. I will fetch it and start right away."
 }
