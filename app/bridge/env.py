@@ -12,7 +12,7 @@ from app.bridge.settings import SettingsBridge
 from core import platform
 from core.env import languages, models
 from core.events import CoreError
-from core.export import SUPPORTED as EXPORT_FORMATS
+from core.formats import SUPPORTED as EXPORT_FORMATS
 from core.media import ensure_tools, version
 
 

@@ -7,7 +7,7 @@ from pathlib import Path
 from core.context import RunContext
 from core.env import models
 from core.events import Code, CoreError, Kind, Stage
-from core.export import segments as segments_file
+from core.formats import segments as segments_file
 from core.job import Job
 
 

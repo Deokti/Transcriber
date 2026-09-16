@@ -11,7 +11,7 @@ from typing import Iterator
 
 from core.context import RunContext
 from core.events import Cancelled, Code, CoreError, Event, Kind, Stage
-from core.export import segments as segments_file
+from core.formats import segments as segments_file
 from core.job import Job, JobState
 from core.profile import TARGET_AUDIO
 from core.stages import check, cleanup, export, prepare, probe, transcribe
