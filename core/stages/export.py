@@ -35,5 +35,11 @@ def run(job: Job, ctx: RunContext) -> None:
 def _header(job: Job) -> str:
     """Строка происхождения в начале файла: чем и как это было сделано."""
     p = job.profile
-    return (f"{job.source.name} | {p.model} | lang={job.stats.get('language', p.language)} "
-            f"| vad={p.vad} | condition_on_previous_text={p.condition_on_previous_text}")
+    parts = [job.source.name, p.model,
+             f"lang={job.stats.get('language', p.language)}",
+             f"vad={p.vad}",
+             f"condition_on_previous_text={p.condition_on_previous_text}"]
+    if job.stats.get("partial"):
+        # Пометка машинная, не фраза: словами её назовёт интерфейс (принцип П-1)
+        parts.append("partial=true")
+    return " | ".join(parts)

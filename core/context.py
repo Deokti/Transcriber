@@ -35,3 +35,12 @@ class RunContext:
     def check_cancel(self) -> None:
         if self.should_cancel():
             raise Cancelled()
+
+    def without_cancel(self) -> "RunContext":
+        """Копия, которую уже не прервать.
+
+        Нужна после отмены: досохранить посчитанное и убрать за собой надо
+        до конца, иначе на диске останется мусор, а работа пропадёт зря.
+        """
+        return RunContext(paths=self.paths, tools=self.tools, backend=self.backend,
+                          emit=self.emit, should_cancel=_never)

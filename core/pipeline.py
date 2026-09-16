@@ -10,7 +10,7 @@ from contextlib import contextmanager
 from typing import Iterator
 
 from core.context import RunContext
-from core.events import Cancelled, Code, CoreError, Kind, Stage
+from core.events import Cancelled, Code, CoreError, Event, Kind, Stage
 from core.export import segments as segments_file
 from core.job import Job, JobState
 from core.profile import TARGET_AUDIO
@@ -82,24 +82,55 @@ def run_job(job: Job, ctx: RunContext) -> Job:
         job.state = JobState.CANCELLED
         job.error_code = Code.CANCELLED
         ctx.event(Kind.FAILED, None, Code.CANCELLED, name=job.source.name)
+        _save_partial(job, ctx)
         return job
     except CoreError as e:
         job.state = JobState.FAILED
         job.error_code = e.code
         job.error_data = e.data
-        ctx.event(Kind.FAILED, None, e.code, name=job.source.name, **e.data)
+        # data отдаём словарём: в нём может оказаться поле с именем
+        # аргумента события, и тогда вызов развалится
+        ctx.emit(Event(Kind.FAILED, None, e.code, {"name": job.source.name, **e.data}))
         return job
     except Exception as e:  # чужая ошибка не должна уронить очередь
         job.state = JobState.FAILED
         job.error_code = Code.UNEXPECTED
         job.error_data = {"reason": repr(e)}
-        ctx.event(Kind.FAILED, None, Code.UNEXPECTED, name=job.source.name, reason=repr(e))
+        ctx.emit(Event(Kind.FAILED, None, Code.UNEXPECTED,
+                       {"name": job.source.name, "reason": repr(e)}))
         return job
 
     job.state = JobState.DONE
-    ctx.event(Kind.JOB_DONE, None, name=job.source.name,
-              artifacts={k: str(v) for k, v in job.artifacts.items()}, **job.stats)
+    ctx.emit(Event(Kind.JOB_DONE, None, None,
+                   {"name": job.source.name,
+                    "artifacts": {k: str(v) for k, v in job.artifacts.items()},
+                    **job.stats}))
     return job
+
+
+def _save_partial(job: Job, ctx: RunContext) -> None:
+    """Досохраняет то, что успели посчитать до отмены.
+
+    Отменить — не значит выбросить. Сегменты уже на диске, документ из них
+    собирается за секунду, а восемьдесят минут счёта второй раз никто не ждёт
+    (решение D-7).
+    """
+    safe = ctx.without_cancel()   # доделываем до конца, второй отмены не слушаем
+    if job.segments:
+        job.stats["partial"] = True
+        total = job.media.duration if job.media else 0.0
+        try:
+            check.run(job, safe)
+            export.run(job, safe)
+            safe.event(Kind.INFO, None, Code.PARTIAL_SAVED,
+                       segments=len(job.segments),
+                       position=job.segments[-1].end, total=total)
+        except Exception as e:
+            safe.event(Kind.WARNING, None, Code.UNEXPECTED, reason=repr(e))
+    try:
+        cleanup.run(job, safe)
+    except Exception:
+        pass   # уборка на аварийном пути молчит: главное уже спасено
 
 
 def _already_done(job: Job, ctx: RunContext) -> bool:

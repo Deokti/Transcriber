@@ -14,6 +14,8 @@ from typing import Any, Callable
 class Kind(str, Enum):
     """Род события. Определяет, как интерфейс его показывает."""
 
+    QUEUE_STARTED = "queue_started"
+    QUEUE_DONE = "queue_done"
     JOB_STARTED = "job_started"
     STAGE_STARTED = "stage_started"
     PROGRESS = "progress"
@@ -84,6 +86,15 @@ class Code:
     TEMP_DELETED = "TEMP_DELETED"
     TEMP_MOVED = "TEMP_MOVED"
     TEMP_MOVE_FAILED = "TEMP_MOVE_FAILED"
+
+    # очередь и отмена
+    STOP_REQUESTED = "STOP_REQUESTED"          # остановиться после текущего файла
+    CANCEL_REQUESTED = "CANCEL_REQUESTED"      # бросить всё немедленно
+    STOP_UNDONE = "STOP_UNDONE"                # передумали, работаем дальше
+    PARTIAL_SAVED = "PARTIAL_SAVED"            # сохранено то, что успели посчитать
+    JOB_ABORTED = "JOB_ABORTED"                # работа оборвалась не по нашей воле
+    MODEL_LANGUAGE_MISMATCH = "MODEL_LANGUAGE_MISMATCH"
+    DOWNLOAD_FAILED = "DOWNLOAD_FAILED"
 
     # общее
     CANCELLED = "CANCELLED"

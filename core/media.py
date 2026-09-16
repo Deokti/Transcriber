@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from core.events import Code, CoreError
+from core.events import Cancelled, Code, CoreError
 
 VIDEO_EXT = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".ts", ".mpg", ".mpeg", ".wmv", ".flv", ".m4v"}
 AUDIO_EXT = {".m4a", ".mp3", ".wav", ".ogg", ".opus", ".flac", ".aac", ".wma", ".m4b", ".amr", ".aiff"}
@@ -179,7 +179,7 @@ def extract_audio(
 
     if cancelled:
         dst.unlink(missing_ok=True)
-        raise CoreError(Code.CANCELLED, stage="prepare")
+        raise Cancelled()
     if code != 0 or not dst.exists() or dst.stat().st_size < 1024:
         raise CoreError(Code.FFMPEG_FAILED, returncode=code, stderr=err.strip()[:400])
     return dst
