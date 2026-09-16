@@ -8,13 +8,31 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QTimer, QUrl
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtCore import QSize, QTimer, QUrl
+from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 
 HERE = Path(__file__).resolve().parent
 QML_DIR = HERE / "qml"
+ICON_DIR = HERE / "icons"
+
+
+def _app_icon() -> QIcon:
+    """Значок окна и панели задач.
+
+    Берём SVG напрямую: Qt отрисует их в любом размере, и собранные ICO с
+    ICNS нужны только при упаковке. Для мелких размеров подставляем
+    упрощённый знак — в 16 px подробный превращается в пятно.
+    """
+    icon = QIcon()
+    small = ICON_DIR / "app-icon-small.svg"
+    large = ICON_DIR / "app-icon.svg"
+    for size in (16, 24):
+        icon.addFile(str(small), QSize(size, size))
+    for size in (32, 48, 64, 128, 256, 512):
+        icon.addFile(str(large), QSize(size, size))
+    return icon
 
 
 def _load_dev_fonts() -> None:
@@ -54,6 +72,7 @@ def main(argv: list[str] | None = None) -> int:
     app = QGuiApplication(sys.argv[:1] + argv)
     app.setApplicationName("Transcriber")
     app.setOrganizationName("Transcriber")
+    app.setWindowIcon(_app_icon())
 
     # Свой стиль, а не подражание каждой системе (решение D-11).
     # Basic ничего не навязывает и полностью переопределяется темой.
