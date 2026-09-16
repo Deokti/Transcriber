@@ -49,6 +49,13 @@ class AsrBackend(Protocol):
         чтобы сказать человеку, что сейчас будет качаться пара гигабайт.
         """
 
+    def download(self, model: str, *, on_progress=None, should_cancel=None) -> None:
+        """Принести модель на диск, отчитываясь о ходе дела.
+
+        `on_progress(сделано, всего)` — в байтах; `should_cancel()` даёт
+        прервать закачку между кусками.
+        """
+
     def transcribe(self, audio: Path, profile: Profile) -> tuple[TranscriptionInfo, Iterator[Segment]]:
         """Отдать сведения о записи и поток сегментов.
 

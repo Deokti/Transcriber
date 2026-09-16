@@ -29,6 +29,7 @@ class Kind(str, Enum):
 class Stage(str, Enum):
     """Стадии конвейера в порядке прохождения."""
 
+    DOWNLOAD = "download"      # нужной модели нет на диске — качаем
     PROBE = "probe"
     PREPARE = "prepare"
     TRANSCRIBE = "transcribe"
@@ -93,6 +94,8 @@ class Code:
     STOP_UNDONE = "STOP_UNDONE"                # передумали, работаем дальше
     PARTIAL_SAVED = "PARTIAL_SAVED"            # сохранено то, что успели посчитать
     JOB_ABORTED = "JOB_ABORTED"                # работа оборвалась не по нашей воле
+    DOWNLOAD_STARTED = "DOWNLOAD_STARTED"      # началось скачивание модели
+    DOWNLOAD_DONE = "DOWNLOAD_DONE"
     MODEL_LANGUAGE_MISMATCH = "MODEL_LANGUAGE_MISMATCH"
     DOWNLOAD_FAILED = "DOWNLOAD_FAILED"
 

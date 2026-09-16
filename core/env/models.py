@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from core.events import Cancelled, Code, CoreError
+
 #: Модель понимает все 99 языков Whisper.
 MULTILINGUAL = "multi"
 #: Модель понимает только английский.
@@ -91,3 +93,124 @@ def is_downloaded(model_id: str, models_dir) -> bool:
 def as_data() -> list[dict]:
     """Каталог целиком — для интерфейса, который сам решит, что показать."""
     return [m.as_data() for m in CATALOG]
+
+#: Из чего состоит модель. Ровно то, что берёт движок: лишнего не качаем.
+FILES = ["config.json", "preprocessor_config.json", "model.bin",
+         "tokenizer.json", "vocabulary.*"]
+
+
+def repo(model_id: str) -> str:
+    """Откуда качать. Карту держит сам движок, мы только спрашиваем."""
+    try:
+        from faster_whisper.utils import _MODELS
+
+        known = _MODELS.get(model_id)
+        if known:
+            return known
+    except Exception:
+        pass
+    return f"Systran/faster-whisper-{model_id}"
+
+
+class _Silence:
+    """Счётчику нужен файл для вывода, а консоли у нас нет."""
+
+    def write(self, *args) -> None:
+        pass
+
+    def flush(self) -> None:
+        pass
+
+
+def _reporter(on_progress, should_cancel, expected: int):
+    """Счётчик прогресса в том виде, в каком его ждёт huggingface_hub.
+
+    Считать приходится аккуратно: библиотека заводит по счётчику на файл, а
+    в новой схеме хранения — ещё и второй на «сборку» уже скачанного. Сложить
+    всё подряд значит удвоить размер. Поэтому берём счётчики самой загрузки,
+    а если их нет (старая схема) — складываем файловые.
+
+    Знаменатель подпираем размером из каталога: в начале известен размер
+    только первого файла, и без этого проценты прыгали бы от ста к десяти.
+    """
+    from tqdm import tqdm as _tqdm
+
+    bars: dict = {}
+
+    class Reporter(_tqdm):
+        def __init__(self, *args, **kwargs):
+            kwargs["file"] = _Silence()
+            kwargs["leave"] = False
+            super().__init__(*args, **kwargs)
+
+        def update(self, n=1):
+            if should_cancel is not None and should_cancel():
+                raise Cancelled(stage="download")
+            result = super().update(n)
+            if self.unit != "B":
+                return result       # «Fetching 4 files» считает штуки, не байты
+            bars[self] = ((self.desc or "").lower(), self.n, self.total or 0)
+            if on_progress is not None:
+                done, total = _sum(bars)
+                on_progress(done, max(total, expected))
+            return result
+
+    return Reporter
+
+
+def _sum(bars: dict) -> tuple[int, int]:
+    rows = [row for row in bars.values() if "download" in row[0]] or list(bars.values())
+    return sum(row[1] for row in rows), sum(row[2] for row in rows)
+
+
+def download(model_id: str, models_dir, *, on_progress=None, should_cancel=None) -> str:
+    """Качает модель и возвращает путь к ней.
+
+    Отмена работает, но скачанное пока пропадает: обрыв не оставляет
+    куска, с которого можно продолжить. Для полутора гигабайт это
+    обидно, и докачка — задача этапа M4 вместе со своим загрузчиком.
+    """
+    import os
+    from pathlib import Path
+
+    import huggingface_hub
+
+    entry = get(model_id)
+    expected = int((entry.size_mb if entry else 0) * 1024 * 1024)
+
+    # Новая схема хранения HuggingFace качает в своих потоках, и отмена до
+    # них не доходит: закачка идёт дальше, как будто её не просили встать.
+    # Старый путь встаёт честно — поэтому просим именно его.
+    previous = os.environ.get("HF_HUB_DISABLE_XET")
+    os.environ["HF_HUB_DISABLE_XET"] = "1"
+    try:
+        return huggingface_hub.snapshot_download(
+            repo(model_id),
+            cache_dir=str(Path(models_dir)),
+            allow_patterns=FILES,
+            tqdm_class=_reporter(on_progress, should_cancel, expected),
+            max_workers=4,
+        )
+    except Cancelled:
+        raise
+    except Exception as e:
+        # Отмена может вернуться завёрнутой: библиотека качает в потоках.
+        if _cancelled_inside(e):
+            raise Cancelled(stage="download") from e
+        raise CoreError(Code.DOWNLOAD_FAILED, model=model_id, reason=repr(e)) from e
+    finally:
+        if previous is None:
+            os.environ.pop("HF_HUB_DISABLE_XET", None)
+        else:
+            os.environ["HF_HUB_DISABLE_XET"] = previous
+
+
+def _cancelled_inside(error: BaseException) -> bool:
+    seen = 0
+    while error is not None and seen < 10:
+        if isinstance(error, Cancelled):
+            return True
+        error = error.__cause__ or error.__context__
+        seen += 1
+    return False
+

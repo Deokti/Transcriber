@@ -11,6 +11,7 @@ from core.platform import NO_CUDA_DEVICE, NO_CUDA_LIBS, NO_CUDA_ON_MACOS
 from core.timecode import hms
 
 STAGE_NAMES = {
+    Stage.DOWNLOAD: "скачивание модели",
     Stage.PROBE: "разбор файла",
     Stage.PREPARE: "подготовка звука",
     Stage.TRANSCRIBE: "распознавание",
@@ -57,10 +58,16 @@ def render(e: Event) -> str | None:
         return f"=== {d['name']} — стадий: {len(d['stages'])}"
 
     if e.kind is Kind.STAGE_STARTED:
-        return f"[{d['number']}/{d['of']}] {stage}"
+        # У скачивания нет номера в плане стадий: его может и не быть
+        return f"[{d['number']}/{d['of']}] {stage}" if d.get("of") else stage
 
     if e.kind is Kind.STAGE_DONE:
-        return f"[{d['number']}/{d['of']}] {stage} — завершено за {d['seconds']:.0f} с"
+        head = f"[{d['number']}/{d['of']}] " if d.get("of") else ""
+        return f"{head}{stage} — завершено за {d['seconds']:.0f} с"
+
+    if e.kind is Kind.PROGRESS and e.stage is Stage.DOWNLOAD:
+        return (f"    {100 * d.get('done', 0):5.1f}%  скачано {mb(d.get('bytes', 0))} "
+                f"из {mb(d.get('total', 0))}")
 
     if e.kind is Kind.PROGRESS:
         done = 100 * d.get("done", 0)

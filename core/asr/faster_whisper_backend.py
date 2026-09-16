@@ -44,6 +44,11 @@ class FasterWhisperBackend:
     def downloaded(self, model: str) -> bool:
         return bool(self._models_dir) and catalog.is_downloaded(model, self._models_dir)
 
+    def download(self, model: str, *, on_progress=None, should_cancel=None) -> None:
+        """Качает модель в ту же папку, откуда потом будет её читать."""
+        catalog.download(model, self._models_dir, on_progress=on_progress,
+                         should_cancel=should_cancel)
+
     def load(self, model: str, device: str, compute: str, cpu_threads: int = 0) -> float:
         """Готовит модель, возвращает потраченные секунды (0 — была готова)."""
         key = (model, device, compute, cpu_threads)

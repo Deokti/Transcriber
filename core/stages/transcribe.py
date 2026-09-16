@@ -11,6 +11,36 @@ from core.formats import segments as segments_file
 from core.job import Job
 
 
+def _fetch(ctx: RunContext, profile) -> None:
+    """Приносит модель на диск, отчитываясь о ходе дела."""
+    entry = models.get(profile.model)
+    ctx.event(Kind.WARNING, Stage.DOWNLOAD, Code.MODEL_MISSING,
+              model=profile.model, size_mb=entry.size_mb if entry else 0)
+    ctx.event(Kind.STAGE_STARTED, Stage.DOWNLOAD, number=0, of=0)
+
+    started = time.monotonic()
+    last = {"at": 0.0}
+
+    def on_progress(done: int, total: int) -> None:
+        now = time.monotonic()
+        if now - last["at"] < 0.5:      # чаще двух раз в секунду окну не нужно
+            return
+        last["at"] = now
+        share = (done / total) if total else 0.0
+        elapsed = now - started
+        eta = elapsed / share * (1 - share) if share > 0.02 else 0.0
+        ctx.event(Kind.PROGRESS, Stage.DOWNLOAD, done=min(share, 1.0),
+                  bytes=done, total=total, eta=round(eta, 1))
+
+    ctx.backend.download(profile.model, on_progress=on_progress,
+                         should_cancel=ctx.should_cancel)
+
+    spent = round(time.monotonic() - started, 1)
+    ctx.event(Kind.INFO, Stage.DOWNLOAD, Code.DOWNLOAD_DONE,
+              model=profile.model, seconds=spent)
+    ctx.event(Kind.STAGE_DONE, Stage.DOWNLOAD, number=0, of=0, seconds=spent)
+
+
 def run(job: Job, ctx: RunContext, audio: Path) -> None:
     profile = job.profile
 
@@ -25,12 +55,11 @@ def run(job: Job, ctx: RunContext, audio: Path) -> None:
                             models.for_language(profile.language),
                             key=lambda m: -m.quality)])
 
-    # Скачивание модели — это гигабайты и минуты молчания. Человек должен
-    # узнать об этом до того, как решит, что программа зависла.
+    # Скачивание модели — это гигабайты и минуты ожидания. Поэтому оно
+    # становится отдельным видимым шагом со своим процентом, а не паузой
+    # внутри распознавания.
     if not ctx.backend.downloaded(profile.model):
-        entry = models.get(profile.model)
-        ctx.event(Kind.WARNING, Stage.TRANSCRIBE, Code.MODEL_MISSING,
-                  model=profile.model, size_mb=entry.size_mb if entry else 0)
+        _fetch(ctx, profile)
 
     ctx.event(Kind.INFO, Stage.TRANSCRIBE, Code.MODEL_LOADING,
               model=profile.model, device=profile.device, compute=profile.compute)
