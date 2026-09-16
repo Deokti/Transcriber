@@ -249,6 +249,21 @@ def devices() -> list[Device]:
     return [Device("cuda", True), cpu]
 
 
+def usable_device(device: str) -> tuple[str, str]:
+    """Что из выбранного действительно доступно.
+
+    Возвращает устройство и причину подмены; пустая причина — подмены не
+    было. Недоступная видеокарта не повод падать: считаем на процессоре и
+    говорим почему (FR-11). Причина — код, слова подберёт интерфейс.
+    """
+    if device != "cuda":
+        return device, ""
+    for item in devices():
+        if item.id == "cuda" and not item.available:
+            return "cpu", item.reason or NO_CUDA_DEVICE
+    return device, ""
+
+
 def default_device() -> str:
     for d in devices():
         if d.id == "cuda" and d.available:

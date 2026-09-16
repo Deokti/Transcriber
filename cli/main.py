@@ -175,14 +175,12 @@ def expand(inputs: list[str]) -> list[Path]:
 
 def resolve_device(profile: Profile, say) -> None:
     """Просит то, что есть: недоступная видеокарта — не повод падать (FR-11)."""
-    if profile.device != "cuda":
+    device, reason = platform.usable_device(profile.device)
+    if not reason:
         return
-    for device in platform.devices():
-        if device.id == "cuda" and not device.available:
-            say(Event(Kind.WARNING, None, Code.DEVICE_FALLBACK, data={"reason": device.reason}))
-            profile.device = "cpu"
-            profile.compute = platform.default_compute("cpu")
-            return
+    say(Event(Kind.WARNING, None, Code.DEVICE_FALLBACK, data={"reason": reason}))
+    profile.device = device
+    profile.compute = platform.default_compute(device)
 
 
 def main(argv: list[str] | None = None) -> int:
