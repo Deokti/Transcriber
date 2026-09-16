@@ -39,4 +39,17 @@ Window {
         visible: root.screen === "settings"
         onBack: root.screen = "main"
     }
+
+    ProgressScreen {
+        anchors.fill: parent
+        visible: root.screen === "progress"
+        onDone: root.screen = "main"
+    }
+
+    // Экран переключает не кнопка, а сам факт начала работы: запуск может
+    // и не случиться — например, не нашёлся ffmpeg.
+    Connections {
+        target: Run
+        function onStarted() { root.screen = "progress" }
+    }
 }

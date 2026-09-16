@@ -80,6 +80,44 @@ QtObject {
         return parts.join(" · ")
     }
 
+    // «около 6 мин»: точность здесь никого не спасает, а мельтешение
+    // секунд на восьмидесятиминутном счёте раздражает.
+    function roughDuration(seconds) {
+        const total = Math.round(seconds || 0)
+        if (total >= 90)
+            return Math.round(total / 60) + " " + I18n.strings["unit.min"]
+        return Math.max(total, 1) + " " + I18n.strings["unit.sec"]
+    }
+
+    // Фраза по коду события. Числа берём из данных: ядро отдаёт код и
+    // значения, слова живут здесь (принцип П-1).
+    function noticeText(notice) {
+        const data = notice.data || {}
+        const text = tr("notice." + notice.code, notice.code)
+        switch (notice.code) {
+        case "DEVICE_FALLBACK":
+            return text.arg(tr("device.reason." + data.reason, data.reason || ""))
+        case "TRACK_FALLBACK":
+            return text.arg(data.asked)
+        case "OUTPUT_EXISTS":
+            return text.arg(data.name || "")
+        case "QUALITY_MINOR":
+        case "QUALITY_STUCK":
+            return text.arg((data.bad_runs || []).length)
+        case "GAPS_FOUND":
+            return text.arg(data.count)
+        case "PARTIAL_SAVED":
+            return text.arg(duration(data.position)).arg(duration(data.total))
+        case "MODEL_MISSING":
+        case "MODEL_LOAD_FAILED":
+        case "MODEL_LANGUAGE_MISMATCH":
+            return text.arg(data.model || "")
+        case "UNEXPECTED":
+            return text.arg(data.reason || "")
+        }
+        return text
+    }
+
     function gigabytes(bytes) {
         return (bytes / 1024 / 1024 / 1024).toFixed(0) + " " + I18n.strings["unit.gb"]
     }

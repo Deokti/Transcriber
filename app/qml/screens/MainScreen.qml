@@ -519,11 +519,13 @@ Item {
                         font.pixelSize: Theme.fontBase
                     }
                     Text {
-                        text: screen.hasFiles
+                        text: Run.failure.code !== undefined
+                            ? Fmt.noticeText(Run.failure)
+                            : screen.hasFiles
                             ? Fmt.duration(Queue.totalDuration) + " · "
                               + Fmt.fileSize(Queue.totalSize)
                             : I18n.strings["main.noFilesHint"]
-                        color: Theme.textMuted
+                        color: Run.failure.code !== undefined ? Theme.errorFg : Theme.textMuted
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSmall
                     }
@@ -539,6 +541,7 @@ Item {
                     // Пока файлы разбираются, длительности неизвестны —
                     // запускать рано.
                     enabled: Queue.readyCount > 0 && !Queue.reading
+                    onClicked: Run.start()
                 }
             }
         }
