@@ -11,7 +11,17 @@ from typing import Iterator
 
 from core.asr.base import Segment, TranscriptionInfo
 from core.events import Code, CoreError
-from core.profile import Profile
+from core.profile import (SENSITIVITY_HIGH, SENSITIVITY_LOW, SENSITIVITY_MEDIUM,
+                          Profile)
+
+#: Порог VAD — вероятность, при которой звук считается речью.
+#: Чем ниже порог, тем охотнее движок признаёт речью тихое место,
+#: то есть тем выше чувствительность.
+SENSITIVITY_THRESHOLD = {
+    SENSITIVITY_LOW: 0.65,
+    SENSITIVITY_MEDIUM: 0.5,
+    SENSITIVITY_HIGH: 0.35,
+}
 
 
 class FasterWhisperBackend:
@@ -24,15 +34,15 @@ class FasterWhisperBackend:
     def __init__(self, models_dir: Path | None = None) -> None:
         self._models_dir = models_dir
         self._model = None
-        self._key: tuple[str, str, str] | None = None
+        self._key: tuple[str, str, str, int] | None = None
 
     @property
-    def loaded(self) -> tuple[str, str, str] | None:
+    def loaded(self) -> tuple[str, str, str, int] | None:
         return self._key
 
-    def load(self, model: str, device: str, compute: str) -> float:
+    def load(self, model: str, device: str, compute: str, cpu_threads: int = 0) -> float:
         """Готовит модель, возвращает потраченные секунды (0 — была готова)."""
-        key = (model, device, compute)
+        key = (model, device, compute, cpu_threads)
         if self._key == key and self._model is not None:
             return 0.0
 
@@ -44,6 +54,7 @@ class FasterWhisperBackend:
                 model,
                 device=device,
                 compute_type=compute,
+                cpu_threads=cpu_threads,   # 0 — на усмотрение движка
                 download_root=str(self._models_dir) if self._models_dir else None,
             )
         except Exception as e:
@@ -58,10 +69,16 @@ class FasterWhisperBackend:
         if self._model is None:
             raise CoreError(Code.MODEL_LOAD_FAILED, reason="model_not_loaded")
 
+        from faster_whisper.vad import VadOptions
+
+        threshold = SENSITIVITY_THRESHOLD.get(profile.sensitivity,
+                                              SENSITIVITY_THRESHOLD[SENSITIVITY_MEDIUM])
         raw_segments, raw_info = self._model.transcribe(
             str(audio),
             language=None if profile.language in (None, "", "auto") else profile.language,
             vad_filter=profile.vad,
+            vad_parameters=VadOptions(threshold=threshold),
+            chunk_length=profile.chunk_length or None,
             condition_on_previous_text=profile.condition_on_previous_text,
             beam_size=profile.beam,
             initial_prompt=profile.initial_prompt or None,

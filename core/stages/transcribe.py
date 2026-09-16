@@ -4,8 +4,9 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
+from core import models
 from core.context import RunContext
-from core.events import Code, Kind, Stage
+from core.events import Code, CoreError, Kind, Stage
 from core.export import segments as segments_file
 from core.job import Job
 
@@ -13,9 +14,21 @@ from core.job import Job
 def run(job: Job, ctx: RunContext, audio: Path) -> None:
     profile = job.profile
 
+    # Английская модель под русскую запись выдаст правдоподобную
+    # бессмыслицу, и человек не поймёт, почему. Лучше не начинать.
+    if not models.supports(profile.model, profile.language):
+        info = models.get(profile.model)
+        raise CoreError(Code.MODEL_LANGUAGE_MISMATCH, model=profile.model,
+                        language=profile.language,
+                        model_languages=info.languages if info else None,
+                        alternatives=[m.id for m in sorted(
+                            models.for_language(profile.language),
+                            key=lambda m: -m.quality)])
+
     ctx.event(Kind.INFO, Stage.TRANSCRIBE, Code.MODEL_LOADING,
               model=profile.model, device=profile.device, compute=profile.compute)
-    spent = ctx.backend.load(profile.model, profile.device, profile.compute)
+    spent = ctx.backend.load(profile.model, profile.device, profile.compute,
+                             profile.cpu_threads)
     ctx.event(Kind.INFO, Stage.TRANSCRIBE, Code.MODEL_READY,
               model=profile.model, seconds=round(spent, 1), cached=spent == 0.0)
 
@@ -61,8 +74,10 @@ def run(job: Job, ctx: RunContext, audio: Path) -> None:
 
     job.artifacts["segments"] = out
     seconds = time.monotonic() - started
-    job.stats.update(segments=count, seconds=seconds, audio=total, language=info.language,
+    words = sum(len(s.text.split()) for s in job.segments)
+    job.stats.update(segments=count, words=words, seconds=seconds, audio=total,
+                     language=info.language,
                      speed=(total / seconds) if seconds > 0 else 0.0)
     ctx.event(Kind.INFO, Stage.TRANSCRIBE, Code.TRANSCRIBE_DONE,
-              segments=count, seconds=round(seconds, 1), audio=total,
+              segments=count, words=words, seconds=round(seconds, 1), audio=total,
               speed=round(total / seconds, 1) if seconds > 0 else 0.0, path=str(out))

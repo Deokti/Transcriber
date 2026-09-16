@@ -21,6 +21,12 @@ TARGET_AUDIO = "audio"
 LAYOUT_TIMECODES = "timecodes"
 LAYOUT_PLAIN = "plain"
 
+#: Чувствительность к речи. Выше — в текст попадёт больше тихой речи,
+#: ниже — меньше шума и случайных фраз на паузах.
+SENSITIVITY_LOW = "low"
+SENSITIVITY_MEDIUM = "medium"
+SENSITIVITY_HIGH = "high"
+
 #: Что делать с промежуточным WAV (FR-29). Выбирается до запуска.
 TEMP_DELETE = "delete"
 TEMP_KEEP = "keep"
@@ -37,6 +43,7 @@ class Profile:
     # подготовка звука
     loudnorm: bool = True
     denoise: bool = False
+    trim_silence: bool = False       # обрезать тишину по краям записи
     track: int = 0
     skip_prepare: bool = False       # отдать исходник движку как есть
 
@@ -49,6 +56,9 @@ class Profile:
     vad: bool = True
     condition_on_previous_text: bool = False   # главный предохранитель от залипаний
     initial_prompt: str = ""
+    sensitivity: str = SENSITIVITY_MEDIUM      # порог VAD
+    chunk_length: int = 30                     # длина фрагмента, секунды
+    cpu_threads: int = 0                       # 0 — на усмотрение движка
 
     # выдача
     formats: list[str] = field(default_factory=lambda: ["txt"])

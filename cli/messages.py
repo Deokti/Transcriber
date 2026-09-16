@@ -99,7 +99,14 @@ def _by_code(e: Event, d: dict, stage: str) -> str | None:
         return f"{prefix}дорожки {d['asked']} нет, беру первую (всего {d['available']})"
 
     if code == Code.FILTERS_APPLIED:
-        return f"{prefix}ffmpeg -> WAV 16 кГц моно ({d['filters'] or 'без фильтров'})"
+        what = []
+        if d.get("denoise"):
+            what.append("шумоподавление")
+        if d.get("trim_silence"):
+            what.append("обрезка тишины по краям")
+        if d.get("loudnorm"):
+            what.append("выравнивание громкости")
+        return f"{prefix}ffmpeg -> WAV 16 кГц моно ({', '.join(what) or 'без обработки'})"
 
     if code == Code.AUDIO_READY:
         return f"{prefix}звук готов за {d['seconds']:.0f} с ({mb(d['size'])})"
@@ -117,8 +124,8 @@ def _by_code(e: Event, d: dict, stage: str) -> str | None:
                 f"длительность {hms(d['duration'])}")
 
     if code == Code.TRANSCRIBE_DONE:
-        return (f"{prefix}распознано: {d['segments']} сегментов за {d['seconds']/60:.1f} мин "
-                f"(x{d['speed']:.1f} к реальному времени)")
+        return (f"{prefix}распознано: {d['segments']} сегментов, {d['words']} слов "
+                f"за {d['seconds']/60:.1f} мин (x{d['speed']:.1f} к реальному времени)")
 
     if code in VERDICTS:
         lines = [f"{prefix}вердикт: {VERDICTS[code]} — строк {d['lines']}, "
@@ -175,6 +182,10 @@ def _by_code(e: Event, d: dict, stage: str) -> str | None:
         return f"{prefix}ffmpeg завершился с кодом {d.get('returncode')}: {d.get('stderr', '')}"
     if code == Code.NO_AUDIO_TRACK:
         return f"{prefix}в файле нет звуковой дорожки"
+    if code == Code.MODEL_LANGUAGE_MISMATCH:
+        alt = ", ".join(d.get("alternatives", [])[:3])
+        return (f"{prefix}модель {d['model']} понимает только английский, "
+                f"а язык записи — {d['language']}. Подойдут: {alt}")
     if code == Code.MODEL_LOAD_FAILED:
         return f"{prefix}не удалось загрузить модель {d.get('model')}: {d.get('reason')}"
     if code == Code.CANCELLED:

@@ -39,7 +39,7 @@ class TranscriptionInfo:
 class AsrBackend(Protocol):
     """Что обязан уметь движок распознавания."""
 
-    def load(self, model: str, device: str, compute: str) -> None:
+    def load(self, model: str, device: str, compute: str, cpu_threads: int = 0) -> None:
         """Приготовить модель. Повторный вызов с теми же значениями — бесплатный."""
 
     def transcribe(self, audio: Path, profile: Profile) -> tuple[TranscriptionInfo, Iterator[Segment]]:

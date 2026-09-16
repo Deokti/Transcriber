@@ -16,10 +16,11 @@ def run(job: Job, ctx: RunContext) -> Path:
         return job.source
 
     duration = job.media.duration if job.media else 0.0
-    filters = build_filters(job.profile.loudnorm, job.profile.denoise)
+    filters = build_filters(job.profile.loudnorm, job.profile.denoise,
+                            job.profile.trim_silence)
     ctx.event(Kind.INFO, Stage.PREPARE, Code.FILTERS_APPLIED,
               filters=filters, loudnorm=job.profile.loudnorm, denoise=job.profile.denoise,
-              track=job.profile.track)
+              trim_silence=job.profile.trim_silence, track=job.profile.track)
 
     target = ctx.paths.temp / f"{job.stem}_16k.wav"
     step = max(job.profile.progress_step_min, 1.0) * 60
@@ -38,6 +39,7 @@ def run(job: Job, ctx: RunContext) -> Path:
         track=job.profile.track,
         loudnorm=job.profile.loudnorm,
         denoise=job.profile.denoise,
+        trim_silence=job.profile.trim_silence,
         duration=duration,
         on_progress=on_progress,
         should_cancel=ctx.should_cancel,

@@ -22,6 +22,7 @@ from core.asr.faster_whisper_backend import FasterWhisperBackend
 from core.events import Code, CoreError, Event, Kind
 from core.job import Job, JobState
 from core.media import MEDIA_EXT, ensure_tools
+from core import models
 from core.runner import JobRunner
 from core.settings import Settings
 from core.profile import (LAYOUT_PLAIN, LAYOUT_TIMECODES, TARGET_AUDIO, TARGET_TEXT,
@@ -63,6 +64,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--cpt", action="store_true",
                    help="включить condition_on_previous_text (по умолчанию выключен: залипания)")
     p.add_argument("--denoise", action="store_true", help="шумоподавление")
+    p.add_argument("--trim-silence", action="store_true",
+                   help="обрезать тишину по краям (середина не трогается)")
+    p.add_argument("--sensitivity", choices=["low", "medium", "high"],
+                   help="чувствительность к речи: выше — больше тихой речи в тексте")
+    p.add_argument("--chunk-length", type=int, help="длина фрагмента, секунды")
+    p.add_argument("--threads", type=int, help="потоков процессора (только для --device cpu)")
+    p.add_argument("--list-models", action="store_true", help="показать каталог моделей")
     p.add_argument("--no-loudnorm", action="store_true", help="не выравнивать громкость")
     p.add_argument("--track", type=int, help="номер аудиодорожки")
     p.add_argument("--raw", action="store_true", help="без ffmpeg: отдать исходник как есть")
@@ -104,6 +112,14 @@ def build_profile(args: argparse.Namespace) -> Profile:
         profile.condition_on_previous_text = True
     if args.denoise:
         profile.denoise = True
+    if args.trim_silence:
+        profile.trim_silence = True
+    if args.sensitivity:
+        profile.sensitivity = args.sensitivity
+    if args.chunk_length:
+        profile.chunk_length = args.chunk_length
+    if args.threads:
+        profile.cpu_threads = args.threads
     if args.no_loudnorm:
         profile.loudnorm = False
     if args.track is not None:
@@ -175,6 +191,9 @@ def main(argv: list[str] | None = None) -> int:
             stream.reconfigure(encoding="utf-8", errors="replace")
 
     args = parse_args(argv)
+    if args.list_models:
+        _print_models()
+        return 0
     signal.signal(signal.SIGINT, _on_sigint)
 
     paths = platform.paths().ensure()
@@ -231,6 +250,15 @@ def main(argv: list[str] | None = None) -> int:
     _summary(_runner.finished, time.monotonic() - started)
     logfile.close()
     return 1 if any(j.state is JobState.FAILED for j in _runner.finished) else 0
+
+
+def _print_models() -> None:
+    print(f"{'модель':<18}{'размер':>9}  {'языки':<12}{'скорость':>9}  качество")
+    for m in models.CATALOG:
+        langs = "99 языков" if m.multilingual else "английский"
+        print(f"{m.id:<18}{m.size_mb:>7} МБ  {langs:<12}{'x' + str(m.speed):>9}  "
+              f"{'*' * m.quality}")
+    print("\nСкорость — во сколько раз быстрее large-v3, грубо.")
 
 
 def _summary(jobs: list[Job], seconds: float) -> None:

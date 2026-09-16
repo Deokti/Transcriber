@@ -117,12 +117,23 @@ def probe(ffprobe: Path, path: Path) -> MediaInfo:
                      container=fmt.get("format_name", ""), audio=audio)
 
 
-def build_filters(loudnorm: bool = True, denoise: bool = False) -> str:
-    """Цепочка -af. Порядок важен: сначала чистим, потом равняем громкость."""
+#: Тише этого считаем тишиной при обрезке краёв.
+SILENCE_DB = "-45dB"
+
+
+def build_filters(loudnorm: bool = True, denoise: bool = False,
+                  trim_silence: bool = False) -> str:
+    """Цепочка -af. Порядок важен: чистим, режем края, равняем громкость."""
     chain = []
     if denoise:
         chain.append("highpass=f=80")    # убрать гул ниже речи
         chain.append("afftdn=nf=-25")    # спектральное шумоподавление
+    if trim_silence:
+        # Срезаем тишину только по краям: в начале — напрямую, в конце —
+        # тем же приёмом на развёрнутом звуке. Середина не трогается,
+        # паузы внутри речи остаются на месте.
+        cut = f"silenceremove=start_periods=1:start_silence=0:start_threshold={SILENCE_DB}"
+        chain += [cut, "areverse", cut, "areverse"]
     if loudnorm:
         chain.append("loudnorm=I=-16:TP=-1.5:LRA=11")
     return ",".join(chain)
@@ -136,6 +147,7 @@ def extract_audio(
     track: int = 0,
     loudnorm: bool = True,
     denoise: bool = False,
+    trim_silence: bool = False,
     duration: float = 0.0,
     on_progress: Callable[[float, float], None] | None = None,
     should_cancel: Callable[[], bool] | None = None,
@@ -149,7 +161,7 @@ def extract_audio(
     cmd = [str(ffmpeg), "-hide_banner", "-nostdin", "-y", "-loglevel", "error",
            "-i", str(src), "-map", f"0:a:{track}?", "-vn", "-sn", "-dn",
            "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le"]
-    filters = build_filters(loudnorm, denoise)
+    filters = build_filters(loudnorm, denoise, trim_silence)
     if filters:
         cmd += ["-af", filters]
     cmd += ["-progress", "pipe:1", "-nostats", str(dst)]
