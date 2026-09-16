@@ -153,7 +153,7 @@
   "notice.STOP_UNDONE": "Работаю дальше.",
   "notice.CANCEL_REQUESTED": "Прерываю работу, сохраняю посчитанное.",
   "notice.CANCELLED": "Файл прерван.",
-  "notice.MODEL_MISSING": "Модель %1 ещё не скачана — качаю, это %2 и несколько минут молчания.",
+  "notice.MODEL_MISSING": "Модель %1 ещё не скачана — качаю, это %2 и несколько минут ожидания.",
   "notice.MODEL_LOAD_FAILED": "Не удалось загрузить модель %1.",
   "notice.MODEL_LANGUAGE_MISMATCH": "Модель %1 понимает только английский, а язык записи другой.",
   "notice.FFMPEG_MISSING": "Не найден ffmpeg — без него не вытащить звук из видео.",
@@ -167,5 +167,8 @@
   "run.cancellingFor": "Останавливаюсь, сохраняю посчитанное · %1",
   "run.cancellingLoad": "Дождусь загрузки модели: её нельзя прервать посередине · %1",
   "action.downloadAndStart": "Скачать и запустить",
-  "main.modelWillDownload": "Модель %1 ещё не скачана — %2. Скачаю и сразу начну работу."
+  "main.modelWillDownload": "Модель %1 ещё не скачана — %2. Скачаю и сразу начну работу.",
+  "stage.download": "Скачиваю модель",
+  "run.downloaded": "%1 из %2",
+  "notice.DOWNLOAD_FAILED": "Скачивание сорвалось: %1"
 }

@@ -113,6 +113,8 @@ QtObject {
         case "MODEL_LOAD_FAILED":
         case "MODEL_LANGUAGE_MISMATCH":
             return text.arg(data.model || "")
+        case "DOWNLOAD_FAILED":
+            return text.arg(data.reason || "")
         case "UNEXPECTED":
             return text.arg(data.reason || "")
         }

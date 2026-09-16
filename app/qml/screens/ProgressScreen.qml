@@ -161,7 +161,13 @@ Item {
                                 // Первые секунды оценки ещё нет — так и пишем,
                                 // вместо бодрого «осталось 0 минут».
                                 visible: screen.working
-                                text: Run.loadingModel !== ""
+                                text: Run.stage === "download"
+                                    ? I18n.strings["run.downloaded"]
+                                          .arg(Fmt.fileSize(Run.bytesDone))
+                                          .arg(Fmt.fileSize(Run.bytesTotal))
+                                      + (Run.eta > 0 ? " · " + I18n.strings["run.eta"]
+                                                           .arg(Fmt.roughDuration(Run.eta)) : "")
+                                    : Run.loadingModel !== ""
                                     ? I18n.strings["run.loadingModel"].arg(Run.loadingModel)
                                     : Run.eta > 0
                                     ? I18n.strings["run.eta"].arg(Fmt.roughDuration(Run.eta))

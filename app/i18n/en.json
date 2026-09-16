@@ -153,7 +153,7 @@
   "notice.STOP_UNDONE": "Carrying on.",
   "notice.CANCEL_REQUESTED": "Interrupting, saving what has been computed.",
   "notice.CANCELLED": "The file was interrupted.",
-  "notice.MODEL_MISSING": "Model %1 has not been downloaded yet — downloading %2, expect a few silent minutes.",
+  "notice.MODEL_MISSING": "Model %1 has not been downloaded yet — downloading %2, expect a few minutes of waiting.",
   "notice.MODEL_LOAD_FAILED": "Could not load model %1.",
   "notice.MODEL_LANGUAGE_MISMATCH": "Model %1 only understands English, and the recording is in another language.",
   "notice.FFMPEG_MISSING": "ffmpeg is missing — without it there is no way to pull audio out of video.",
@@ -167,5 +167,8 @@
   "run.cancellingFor": "Stopping, saving what has been computed · %1",
   "run.cancellingLoad": "Waiting for the model to load: it cannot be interrupted midway · %1",
   "action.downloadAndStart": "Download and start",
-  "main.modelWillDownload": "Model %1 has not been downloaded yet — %2. I will fetch it and start right away."
+  "main.modelWillDownload": "Model %1 has not been downloaded yet — %2. I will fetch it and start right away.",
+  "stage.download": "Downloading the model",
+  "run.downloaded": "%1 of %2",
+  "notice.DOWNLOAD_FAILED": "The download broke off: %1"
 }

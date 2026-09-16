@@ -30,6 +30,10 @@ from core.runner import JobRunner
 VISIBLE_STAGES = (Stage.PREPARE.value, Stage.TRANSCRIBE.value,
                   Stage.CHECK.value, Stage.EXPORT.value, Stage.CLEANUP.value)
 
+#: Скачивания в плане стадий нет — оно случается, только если модели нет на
+#: диске. Поэтому строка списка заводится по ходу дела, а не заранее.
+DOWNLOAD = Stage.DOWNLOAD.value
+
 WAITING = "waiting"
 RUNNING = "running"
 DONE = "done"
@@ -80,6 +84,9 @@ class RunBridge(QObject):
         self._has_percent = False
         self._eta = 0.0
         self._loading = ""
+        self._bytes = 0.0
+        self._bytesTotal = 0.0
+        self._nested = ""
         self._summary: dict = {}
         self._failure: dict = {}
 
@@ -131,6 +138,15 @@ class RunBridge(QObject):
     def eta(self) -> float:
         """Секунды до конца текущего файла. Ноль — ещё не посчитано."""
         return self._eta
+
+    @Property(float, notify=changed)
+    def bytesDone(self) -> float:
+        """Сколько уже скачано. Ноль — сейчас ничего не качается."""
+        return self._bytes
+
+    @Property(float, notify=changed)
+    def bytesTotal(self) -> float:
+        return self._bytesTotal
 
     @Property(str, notify=changed)
     def loadingModel(self) -> str:
@@ -246,6 +262,16 @@ class RunBridge(QObject):
 
         elif kind is Kind.STAGE_STARTED and stage is not None:
             self._stage = stage.value
+            if stage.value == DOWNLOAD:
+                if not self._has_stage(DOWNLOAD):
+                    self._stages = [{"code": DOWNLOAD, "state": WAITING}] + self._stages
+                # Скачивание случается внутри распознавания. Две горящие
+                # строки разом читаются как «делаю два дела сразу», поэтому
+                # объемлющую стадию возвращаем в ожидание.
+                self._nested = next((item["code"] for item in self._stages
+                                     if item["state"] == RUNNING and item["code"] != DOWNLOAD), "")
+                if self._nested:
+                    self._mark_stage(self._nested, WAITING)
             self._mark_stage(stage.value, RUNNING)
             # Процент прошлой стадии к новой отношения не имеет: оставить
             # его — значит показать «100%» в начале распознавания.
@@ -262,11 +288,26 @@ class RunBridge(QObject):
             self._percent = float(data.get("done", 0.0))
             self._has_percent = True
             self._eta = float(data.get("eta", 0.0))
+            if stage is not None and stage.value == DOWNLOAD:
+                self._bytes = float(data.get("bytes", 0.0))
+                self._bytesTotal = float(data.get("total", 0.0))
 
         elif kind is Kind.STAGE_DONE and stage is not None:
             self._mark_stage(stage.value, DONE)
             if stage.value == Stage.TRANSCRIBE.value:
                 self._percent = 1.0     # счёт закончен, пусть так и показывает
+            if stage.value == DOWNLOAD:
+                # Своего «начала» у объемлющей стадии больше не будет:
+                # возвращаем её сами, иначе экран так и будет писать
+                # «Скачиваю модель» поверх процента распознавания.
+                if self._nested:
+                    self._mark_stage(self._nested, RUNNING)
+                self._stage = self._nested
+                self._nested = ""
+                self._bytes = 0.0
+                self._bytesTotal = 0.0
+                self._percent = 0.0
+                self._has_percent = False
 
         elif kind is Kind.JOB_DONE:
             self._loading = ""
@@ -298,6 +339,9 @@ class RunBridge(QObject):
             self._notice(kind, code, data, stage)
 
         self.changed.emit()
+
+    def _has_stage(self, code: str) -> bool:
+        return any(item["code"] == code for item in self._stages)
 
     def _mark_stage(self, code: str, state: str) -> None:
         for item in self._stages:
