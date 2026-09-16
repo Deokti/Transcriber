@@ -13,11 +13,30 @@ ColumnLayout {
     property string hint: ""              // почему пункт недоступен или что он значит
     property bool enabled_: true
 
+    // Работа по кодам, а не по номеру пункта. Номер привязан к списку надписей,
+    // а тот меняется при смене языка — и выбор бы сбрасывался.
+    property var values: []               // коды пунктов, в том же порядке
+    property string value: ""             // выбранный код
+
+    // Только о выборе человеком: Qt сбрасывает номер и сам, когда меняется
+    // список. Если слушать «номер изменился», смена языка перепишет настройку.
+    signal chosen(string value)
+
     spacing: Theme.gapLabel
+
+    onValueChanged: syncIndex()
+    Component.onCompleted: syncIndex()
+
+    function syncIndex() {
+        if (values.length === 0)
+            return
+        const index = values.indexOf(value)
+        combo.currentIndex = index >= 0 ? index : 0
+    }
 
     Text {
         id: caption
-        color: root.enabled_ ? Theme.textMuted : Theme.textOff
+        color: root.enabled_ ? Theme.textMuted : Theme.textDisabled
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSmall
     }
@@ -32,21 +51,30 @@ ColumnLayout {
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontBase
 
+        // Список надписей сменился (например, перевели интерфейс) — Qt обнулил
+        // выбор. Возвращаем его по коду, не трогая настройку.
+        onModelChanged: Qt.callLater(root.syncIndex)
+        onActivated: function (index) {
+            if (root.values.length > index)
+                root.chosen(root.values[index])
+        }
+
         contentItem: Text {
             leftPadding: 10
             rightPadding: 28
             text: combo.displayText
             font: combo.font
-            color: combo.enabled ? Theme.text : Theme.textOff
+            color: combo.enabled ? Theme.text : Theme.textDisabled
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
         }
 
         background: Rectangle {
             radius: Theme.radiusField
-            color: combo.enabled ? Theme.field : Theme.panel
+            color: combo.enabled ? Theme.fieldBg : Theme.disabledFieldBg
             border.width: 1
-            border.color: combo.hovered && combo.enabled ? Theme.lineStrong : Theme.line
+            border.color: !combo.enabled ? Theme.disabledFieldBorder
+                        : combo.hovered ? Theme.hoverBorder : Theme.fieldBorder
             Behavior on border.color { ColorAnimation { duration: Theme.fast } }
         }
 
@@ -54,21 +82,35 @@ ColumnLayout {
             cursorShape: combo.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
         }
 
-        indicator: Canvas {
+        indicator: Item {
             x: combo.width - width - 10
             y: (combo.height - height) / 2
             width: 10
             height: 6
-            onPaint: {
-                const ctx = getContext("2d");
-                ctx.reset();
-                ctx.strokeStyle = combo.enabled ? Theme.textMuted : Theme.textOff;
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.lineTo(width / 2, height);
-                ctx.lineTo(width, 0);
-                ctx.stroke();
+
+            // Те же две палочки, что и в галочке: цвет привязан, значит
+            // стрелка переживает смену темы без перерисовки вручную.
+            Rectangle {
+                color: combo.enabled ? Theme.textMuted : Theme.textDisabled
+                radius: 0.75
+                width: 1.5
+                height: 7
+                x: 1.6
+                y: -0.6
+                rotation: -45
+                transformOrigin: Item.Center
+                antialiasing: true
+            }
+            Rectangle {
+                color: combo.enabled ? Theme.textMuted : Theme.textDisabled
+                radius: 0.75
+                width: 1.5
+                height: 7
+                x: 6.9
+                y: -0.6
+                rotation: 45
+                transformOrigin: Item.Center
+                antialiasing: true
             }
         }
 
@@ -79,15 +121,14 @@ ColumnLayout {
             contentItem: Text {
                 text: modelData !== undefined && modelData.text !== undefined
                       ? modelData.text : modelData
-                color: parent.enabled ? Theme.text : Theme.textOff
+                color: parent.enabled ? Theme.text : Theme.textDisabled
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontBase
                 verticalAlignment: Text.AlignVCenter
                 elide: Text.ElideRight
             }
             background: Rectangle {
-                color: parent.hovered ? Qt.rgba(Theme.accent.r, Theme.accent.g,
-                                                Theme.accent.b, 0.12) : "transparent"
+                color: parent.hovered ? Theme.navHoverBg : "transparent"
             }
             HoverHandler { cursorShape: Qt.PointingHandCursor }
         }
@@ -104,8 +145,8 @@ ColumnLayout {
                 ScrollIndicator.vertical: ScrollIndicator {}
             }
             background: Rectangle {
-                color: Theme.field
-                border.color: Theme.line
+                color: Theme.fieldBg
+                border.color: Theme.fieldBorder
                 radius: Theme.radiusField
             }
         }
@@ -117,7 +158,7 @@ ColumnLayout {
         Layout.maximumWidth: Theme.textWidth
         text: root.hint
         wrapMode: Text.WordWrap
-        color: Theme.textMuted
+        color: Theme.textBody
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSmall
     }

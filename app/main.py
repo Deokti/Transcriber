@@ -11,6 +11,7 @@ from pathlib import Path
 from PySide6.QtCore import QSize, QTimer, QUrl
 from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
 
 from app.bridge import SettingsBridge
@@ -75,6 +76,11 @@ def _load_dev_fonts() -> None:
 def main(argv: list[str] | None = None) -> int:
     argv = list(argv if argv is not None else sys.argv[1:])
     _claim_own_identity()
+
+    # По умолчанию Qt рисует текст через поля расстояний — так дешевле
+    # анимировать и масштабировать, но мелкие надписи слегка плывут.
+    # Нам важнее чёткость: интерфейс статичный, а читают его часами.
+    QQuickWindow.setTextRenderType(QQuickWindow.TextRenderType.NativeTextRendering)
 
     # Служебный режим для разработки: отрисовать окно и сохранить картинку.
     forced_theme = ""

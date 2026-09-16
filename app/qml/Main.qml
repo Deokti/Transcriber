@@ -16,7 +16,7 @@ Window {
     minimumHeight: Theme.minHeight
     visible: true
     title: "Transcriber"
-    color: Theme.window
+    color: Theme.windowBg
 
     // Тема приходит из настроек: там же живёт вариант «как в системе».
     // forcedTheme — только для снимков при разработке.

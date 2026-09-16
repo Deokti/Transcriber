@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import Transcriber
+import "."
 
 // Галочка с подписью. Знак рисуем сами: у Basic он чужой обеим темам.
 CheckBox {
@@ -17,29 +18,18 @@ CheckBox {
         x: 0
         y: (control.height - height) / 2
         radius: 3
-        color: control.checked ? Theme.accent : Theme.field
+        color: control.checked ? Theme.accent : Theme.fieldBg
         border.width: 1
         border.color: control.checked ? Theme.accent
-                    : control.hovered ? Theme.lineStrong : Theme.line
+                    : control.hovered ? Theme.hoverBorder : Theme.checkBorder
         Behavior on color { ColorAnimation { duration: Theme.fast } }
 
-        Canvas {
+        CheckMark {
             anchors.centerIn: parent
-            width: 10
-            height: 8
+            width: 11
+            height: 11
             visible: control.checked
-            onPaint: {
-                const ctx = getContext("2d");
-                ctx.reset();
-                ctx.strokeStyle = Theme.onAccent;
-                ctx.lineWidth = 2;
-                ctx.lineCap = "round";
-                ctx.beginPath();
-                ctx.moveTo(0, 4);
-                ctx.lineTo(3.5, 7.5);
-                ctx.lineTo(10, 0.5);
-                ctx.stroke();
-            }
+            color: Theme.accentText
         }
     }
 
@@ -50,7 +40,7 @@ CheckBox {
     contentItem: Text {
         text: control.text
         font: control.font
-        color: control.enabled ? Theme.text : Theme.textOff
+        color: control.enabled ? Theme.text : Theme.textDisabled
         leftPadding: control.indicator.width + control.spacing
         verticalAlignment: Text.AlignVCenter
     }

@@ -43,7 +43,7 @@ Item {
                 color: Theme.text
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSection
-                font.weight: Theme.weightBold
+                font.weight: Theme.weightSemiBold
             }
             Item { Layout.fillWidth: true }
             // Молчим, пока всё сохранено: сообщать стоит о том, что требует
@@ -51,7 +51,7 @@ Item {
             Text {
                 visible: !Settings.saved
                 text: I18n.strings["settings.unsaved"]
-                color: Theme.warn
+                color: Theme.warnFg
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSmall
             }
@@ -73,7 +73,7 @@ Item {
                     color: Theme.text
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontBase
-                    font.weight: Theme.weightBold
+                    font.weight: Theme.weightSemiBold
                 }
 
                 RowLayout {
@@ -84,29 +84,20 @@ Item {
                         Layout.preferredWidth: 240
                         label: I18n.strings["settings.language"]
                         model: I18n.languages.map(function (l) { return l.name })
-                        currentIndex: {
-                            const codes = I18n.languages.map(function (l) { return l.code })
-                            return Math.max(0, codes.indexOf(Settings.language))
-                        }
-                        onCurrentIndexChanged: {
-                            const codes = I18n.languages.map(function (l) { return l.code })
-                            if (currentIndex >= 0 && codes[currentIndex] !== Settings.language)
-                                Settings.setLanguage(codes[currentIndex])
-                        }
+                        values: I18n.languages.map(function (l) { return l.code })
+                        value: Settings.language
+                        onChosen: function (code) { Settings.setLanguage(code) }
                     }
 
                     ComboField {
                         Layout.preferredWidth: 240
                         label: I18n.strings["settings.theme"]
-                        property var codes: ["system", "light", "dark"]
                         model: [I18n.strings["settings.theme.system"],
                                 I18n.strings["settings.theme.light"],
                                 I18n.strings["settings.theme.dark"]]
-                        currentIndex: Math.max(0, codes.indexOf(Settings.theme))
-                        onCurrentIndexChanged: {
-                            if (currentIndex >= 0 && codes[currentIndex] !== Settings.theme)
-                                Settings.setTheme(codes[currentIndex])
-                        }
+                        values: ["system", "light", "dark"]
+                        value: Settings.theme
+                        onChosen: function (code) { Settings.setTheme(code) }
                     }
 
                     Item { Layout.fillWidth: true }
@@ -130,7 +121,7 @@ Item {
                     color: Theme.text
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontBase
-                    font.weight: Theme.weightBold
+                    font.weight: Theme.weightSemiBold
                 }
 
                 FolderRow {

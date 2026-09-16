@@ -16,13 +16,27 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Theme.gapPanels
-        spacing: Theme.gapPanels
+        spacing: 0
 
         // --- полоса инструментов ---------------------------------------
-        RowLayout {
+        // У полос свой фон: так отделены рабочая область и действия.
+        Rectangle {
             Layout.fillWidth: true
-            spacing: Theme.gapButtons
+            Layout.preferredHeight: Theme.hBar
+            color: Theme.barBg
+
+            Rectangle {
+                anchors.bottom: parent.bottom
+                width: parent.width
+                height: 1
+                color: Theme.barDivider
+            }
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: Theme.gapPanels
+                anchors.rightMargin: Theme.gapPanels
+                spacing: Theme.gapButtons
 
             AppButton { text: I18n.strings["action.chooseFiles"] }
 
@@ -33,23 +47,34 @@ Item {
             AppButton {
                 text: I18n.strings["nav.settings"]
                 flat_: true
-                onClicked: screen.openSettings()
+                    onClicked: screen.openSettings()
+                }
             }
         }
 
-        // --- пусто или очередь -----------------------------------------
-        RowLayout {
+        // --- рабочая область --------------------------------------------
+        ColumnLayout {
             Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.margins: Theme.gapPanels
             spacing: Theme.gapPanels
+
+        // --- пусто или очередь -----------------------------------------
+        // Одна панель, разделённая вертикальной линией: слева приглашение,
+        // справа проверка готовности. Так в макете.
+        Panel {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 150
             visible: !screen.hasFiles
 
-            Panel {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 150
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.padPanel
+                spacing: Theme.padPanel
 
                 ColumnLayout {
-                    anchors.centerIn: parent
-                    width: parent.width - Theme.padPanel * 2
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignVCenter
                     spacing: Theme.gapButtons
 
                     Text {
@@ -57,13 +82,11 @@ Item {
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSection
-                        font.weight: Theme.weightBold
-                        Layout.alignment: Qt.AlignHCenter
+                        font.weight: Theme.weightSemiBold
                     }
                     Text {
-                        Layout.alignment: Qt.AlignHCenter
+                        Layout.fillWidth: true
                         Layout.maximumWidth: Theme.textWidth
-                        horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
                         text: I18n.strings["main.emptyHint"]
                         color: Theme.textMuted
@@ -71,51 +94,40 @@ Item {
                         font.pixelSize: Theme.fontSmall
                     }
                     RowLayout {
-                        Layout.alignment: Qt.AlignHCenter
                         spacing: Theme.gapButtons
                         AppButton { text: I18n.strings["action.chooseFiles"]; primary: true }
                         AppButton { text: I18n.strings["action.chooseFolder"] }
                     }
                 }
-            }
 
-            // Блок «Готово к работе» — он же предупредит, если что-то не так
-            Panel {
-                Layout.preferredWidth: 260
-                Layout.preferredHeight: 150
+                Rectangle {
+                    Layout.fillHeight: true
+                    Layout.preferredWidth: 1
+                    color: Theme.panelDivider
+                }
 
                 ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: Theme.padPanel
+                    Layout.preferredWidth: 230
+                    Layout.alignment: Qt.AlignTop
                     spacing: 6
 
                     Text {
                         text: I18n.strings["main.ready"]
                         color: Theme.text
                         font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontBase
-                        font.weight: Theme.weightBold
+                        font.pixelSize: Theme.fontSmall
+                        font.weight: Theme.weightSemiBold
                     }
                     Repeater {
                         model: ["ffmpeg 7.0", "модель large-v3",
                                 "видеокарта NVIDIA RTX 5070 Ti", "свободно 214 ГБ"]
                         RowLayout {
                             spacing: 6
-                            Canvas {
-                                width: 11; height: 9
+                            CheckMark {
+                                width: 11; height: 11
+                                thickness: 1.8
+                                color: Theme.okFg
                                 Layout.alignment: Qt.AlignVCenter
-                                onPaint: {
-                                    const ctx = getContext("2d");
-                                    ctx.reset();
-                                    ctx.strokeStyle = Theme.ok;
-                                    ctx.lineWidth = 1.8;
-                                    ctx.lineCap = "round";
-                                    ctx.beginPath();
-                                    ctx.moveTo(0.5, 4.5);
-                                    ctx.lineTo(4, 8);
-                                    ctx.lineTo(10.5, 0.8);
-                                    ctx.stroke();
-                                }
                             }
                             Text {
                                 text: modelData
@@ -152,7 +164,7 @@ Item {
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontBase
-                        font.weight: Theme.weightBold
+                        font.weight: Theme.weightSemiBold
                     }
                     ComboField {
                         Layout.fillWidth: true
@@ -185,7 +197,7 @@ Item {
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontBase
-                        font.weight: Theme.weightBold
+                        font.weight: Theme.weightSemiBold
                     }
                     ComboField {
                         Layout.fillWidth: true
@@ -225,7 +237,7 @@ Item {
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontBase
-                        font.weight: Theme.weightBold
+                        font.weight: Theme.weightSemiBold
                     }
                     ComboField {
                         Layout.fillWidth: true
@@ -283,11 +295,25 @@ Item {
         }
 
         Item { Layout.fillHeight: true }
+        }
 
         // --- подвал -----------------------------------------------------
-        RowLayout {
+        Rectangle {
             Layout.fillWidth: true
-            spacing: Theme.gapButtons
+            Layout.preferredHeight: Theme.hBar
+            color: Theme.barBg
+
+            Rectangle {
+                width: parent.width
+                height: 1
+                color: Theme.barDivider
+            }
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: Theme.gapPanels
+                anchors.rightMargin: Theme.gapPanels
+                spacing: Theme.gapButtons
 
             ColumnLayout {
                 spacing: 2
@@ -313,8 +339,27 @@ Item {
             AppButton {
                 text: screen.hasFiles ? I18n.strings["action.start"]
                                       : I18n.strings["action.startDisabled"]
-                primary: true
-                enabled: screen.hasFiles
+                    primary: true
+                    enabled: screen.hasFiles
+                }
+            }
+        }
+
+        // --- строка состояния -------------------------------------------
+        // Молчит, пока всё в порядке: три одинаковых факта мелким шрифтом —
+        // это шум. Заговорит, когда чего-то не хватает.
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: Theme.hStatus
+            color: Theme.statusBg
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                x: Theme.gapPanels
+                text: "ffmpeg 7.0 · модель large-v3 · свободно 214 ГБ"
+                color: Theme.textMuted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSmall
             }
         }
     }

@@ -33,9 +33,9 @@ ColumnLayout {
             Layout.fillWidth: true
             implicitHeight: Theme.hField
             radius: Theme.radiusField
-            color: Theme.field
+            color: Theme.fieldBg
             border.width: 1
-            border.color: Theme.line
+            border.color: Theme.fieldBorder
 
             Text {
                 anchors.fill: parent
@@ -43,7 +43,7 @@ ColumnLayout {
                 anchors.rightMargin: 10
                 verticalAlignment: Text.AlignVCenter
                 text: root.value !== "" ? root.value : root.placeholder
-                color: root.value !== "" ? Theme.text : Theme.textOff
+                color: root.value !== "" ? Theme.text : Theme.textDisabled
                 font.family: root.value !== "" ? Theme.monoFamily : Theme.fontFamily
                 font.pixelSize: Theme.fontSmall
                 elide: Text.ElideMiddle

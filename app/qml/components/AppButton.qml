@@ -29,9 +29,9 @@ Button {
     contentItem: Text {
         text: control.text
         font: control.font
-        color: !control.enabled ? Theme.textOff
-             : control.primary ? Theme.onAccent
-             : control.flat_ && !control.hovered ? Theme.textMuted
+        color: !control.enabled ? Theme.textDisabled
+             : control.primary ? Theme.accentText
+             : control.flat_ && !control.hovered ? Theme.textSecondary
              : Theme.text
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
@@ -41,21 +41,22 @@ Button {
     background: Rectangle {
         radius: Theme.radiusField
         border.width: (control.primary || control.flat_) ? 0 : 1
-        border.color: control.hovered ? Theme.lineStrong : Theme.line
+        border.color: !control.enabled ? Theme.disabledBorder
+                    : control.hovered ? Theme.hoverBorder : Theme.fieldBorder
         color: {
             if (!control.enabled)
-                return control.flat_ ? "transparent" : Theme.panel
+                return control.flat_ ? "transparent" : Theme.disabledBg
             if (control.primary)
-                return control.down ? Qt.darker(Theme.accent, 1.15)
-                     : control.hovered ? Qt.lighter(Theme.accent, 1.08)
+                return control.down ? Theme.accentActive
+                     : control.hovered ? Theme.accentHover
                      : Theme.accent
             if (control.flat_)
-                return control.down ? Theme.line
-                     : control.hovered ? Theme.panel
+                return control.down ? Theme.activeBg
+                     : control.hovered ? Theme.navHoverBg
                      : "transparent"
-            return control.down ? Theme.line
-                 : control.hovered ? Theme.panel
-                 : Theme.buttonFill
+            return control.down ? Theme.activeBg
+                 : control.hovered ? Theme.hoverBg
+                 : Theme.buttonBg
         }
     }
 
