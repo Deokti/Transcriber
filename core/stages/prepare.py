@@ -38,8 +38,6 @@ def run(job: Job, ctx: RunContext) -> Path:
         track=job.profile.track,
         loudnorm=job.profile.loudnorm,
         denoise=job.profile.denoise,
-        start=job.profile.start,
-        end=job.profile.end,
         duration=duration,
         on_progress=on_progress,
         should_cancel=ctx.should_cancel,

@@ -38,8 +38,6 @@ class Profile:
     loudnorm: bool = True
     denoise: bool = False
     track: int = 0
-    start: str | None = None
-    end: str | None = None
     skip_prepare: bool = False       # отдать исходник движку как есть
 
     # распознавание

@@ -136,8 +136,6 @@ def extract_audio(
     track: int = 0,
     loudnorm: bool = True,
     denoise: bool = False,
-    start: str | None = None,
-    end: str | None = None,
     duration: float = 0.0,
     on_progress: Callable[[float, float], None] | None = None,
     should_cancel: Callable[[], bool] | None = None,
@@ -148,13 +146,9 @@ def extract_audio(
     так что лишней потери качества здесь нет.
     """
     dst.parent.mkdir(parents=True, exist_ok=True)
-    cmd = [str(ffmpeg), "-hide_banner", "-nostdin", "-y", "-loglevel", "error"]
-    if start:
-        cmd += ["-ss", str(start)]
-    if end:
-        cmd += ["-to", str(end)]
-    cmd += ["-i", str(src), "-map", f"0:a:{track}?", "-vn", "-sn", "-dn",
-            "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le"]
+    cmd = [str(ffmpeg), "-hide_banner", "-nostdin", "-y", "-loglevel", "error",
+           "-i", str(src), "-map", f"0:a:{track}?", "-vn", "-sn", "-dn",
+           "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le"]
     filters = build_filters(loudnorm, denoise)
     if filters:
         cmd += ["-af", filters]

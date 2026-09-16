@@ -59,8 +59,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--denoise", action="store_true", help="шумоподавление")
     p.add_argument("--no-loudnorm", action="store_true", help="не выравнивать громкость")
     p.add_argument("--track", type=int, help="номер аудиодорожки")
-    p.add_argument("--start", help="начало куска, напр. 00:10:00")
-    p.add_argument("--end", help="конец куска, напр. 00:25:00")
     p.add_argument("--raw", action="store_true", help="без ffmpeg: отдать исходник как есть")
     p.add_argument("--audio-only", action="store_true", help="только вытащить звук, не распознавать")
     p.add_argument("--layout", choices=[LAYOUT_TIMECODES, LAYOUT_PLAIN])
@@ -104,10 +102,6 @@ def build_profile(args: argparse.Namespace) -> Profile:
         profile.loudnorm = False
     if args.track is not None:
         profile.track = args.track
-    if args.start:
-        profile.start = args.start
-    if args.end:
-        profile.end = args.end
     if args.raw:
         profile.skip_prepare = True
     if args.audio_only:
