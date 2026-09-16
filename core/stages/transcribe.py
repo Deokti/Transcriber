@@ -25,6 +25,13 @@ def run(job: Job, ctx: RunContext, audio: Path) -> None:
                             models.for_language(profile.language),
                             key=lambda m: -m.quality)])
 
+    # Скачивание модели — это гигабайты и минуты молчания. Человек должен
+    # узнать об этом до того, как решит, что программа зависла.
+    if not ctx.backend.downloaded(profile.model):
+        entry = models.get(profile.model)
+        ctx.event(Kind.WARNING, Stage.TRANSCRIBE, Code.MODEL_MISSING,
+                  model=profile.model, size_mb=entry.size_mb if entry else 0)
+
     ctx.event(Kind.INFO, Stage.TRANSCRIBE, Code.MODEL_LOADING,
               model=profile.model, device=profile.device, compute=profile.compute)
     spent = ctx.backend.load(profile.model, profile.device, profile.compute,

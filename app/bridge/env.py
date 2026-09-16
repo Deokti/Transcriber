@@ -106,6 +106,16 @@ class EnvBridge(QObject):
         """Форматы, которые ядро действительно умеет собрать прямо сейчас."""
         return self._get("formats", [])
 
+    @Property("QVariantList", notify=changed)
+    def downloadedModels(self) -> list:
+        """Что уже лежит на диске — списком, а не вопросом.
+
+        Вопрос в привязке QML не пересчитывается: привязка следит за
+        свойствами, а не за вызовами. Сменили папку моделей — и ответ
+        остался бы прежним.
+        """
+        return [m["id"] for m in self._get("models", []) if m["downloaded"]]
+
     @Slot(str, result=bool)
     def modelDownloaded(self, model_id: str) -> bool:
         return any(m["id"] == model_id and m["downloaded"] for m in self._get("models", []))

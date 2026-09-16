@@ -109,6 +109,7 @@ QtObject {
         case "PARTIAL_SAVED":
             return text.arg(duration(data.position)).arg(duration(data.total))
         case "MODEL_MISSING":
+            return text.arg(data.model || "").arg(fileSize((data.size_mb || 0) * 1024 * 1024))
         case "MODEL_LOAD_FAILED":
         case "MODEL_LANGUAGE_MISMATCH":
             return text.arg(data.model || "")

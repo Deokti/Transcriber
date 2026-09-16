@@ -42,6 +42,13 @@ class AsrBackend(Protocol):
     def load(self, model: str, device: str, compute: str, cpu_threads: int = 0) -> None:
         """Приготовить модель. Повторный вызов с теми же значениями — бесплатный."""
 
+    def downloaded(self, model: str) -> bool:
+        """Лежит ли модель на диске.
+
+        От этого зависит, полезет ли движок в сеть. Спрашивает стадия —
+        чтобы сказать человеку, что сейчас будет качаться пара гигабайт.
+        """
+
     def transcribe(self, audio: Path, profile: Profile) -> tuple[TranscriptionInfo, Iterator[Segment]]:
         """Отдать сведения о записи и поток сегментов.
 

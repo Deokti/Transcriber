@@ -18,6 +18,7 @@ Item {
     // Очередь живёт в мосте: окно её показывает, но не хранит.
     readonly property bool hasFiles: Queue.count > 0
 
+
     FolderDialog {
         id: outputPicker
         onAccepted: Task.setOutputDir(selectedFolder)
@@ -224,8 +225,10 @@ Item {
                                         : I18n.strings["ready.ffmpegMissing"]
                                 },
                                 {
-                                    ok: Env.modelDownloaded(Task.model),
-                                    text: Env.modelDownloaded(Task.model)
+                                    // Список, а не вопрос: привязка следит за
+                                    // свойствами, а вызов пересчитан не будет.
+                                    ok: Env.downloadedModels.indexOf(Task.model) >= 0,
+                                    text: Env.downloadedModels.indexOf(Task.model) >= 0
                                         ? I18n.strings["ready.model"].arg(Task.model)
                                         : I18n.strings["ready.modelMissing"].arg(Task.model)
                                 },

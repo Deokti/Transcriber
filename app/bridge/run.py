@@ -79,6 +79,7 @@ class RunBridge(QObject):
         self._percent = 0.0
         self._has_percent = False
         self._eta = 0.0
+        self._loading = ""
         self._summary: dict = {}
         self._failure: dict = {}
 
@@ -130,6 +131,16 @@ class RunBridge(QObject):
     def eta(self) -> float:
         """Секунды до конца текущего файла. Ноль — ещё не посчитано."""
         return self._eta
+
+    @Property(str, notify=changed)
+    def loadingModel(self) -> str:
+        """Какая модель сейчас грузится. Пусто — не грузится.
+
+        Загрузка large-v3 занимает около минуты, а первая — ещё и
+        скачивание в несколько гигабайт. Без этого свойства окно в это
+        время показывает пустую стадию и выглядит зависшим.
+        """
+        return self._loading
 
     @Property("QVariantList", notify=changed)
     def notices(self) -> list:
@@ -241,6 +252,12 @@ class RunBridge(QObject):
             self._percent = 0.0
             self._has_percent = False
 
+        elif kind is Kind.INFO and code == Code.MODEL_LOADING:
+            self._loading = str(data.get("model", ""))
+
+        elif kind is Kind.INFO and code == Code.MODEL_READY:
+            self._loading = ""
+
         elif kind is Kind.PROGRESS:
             self._percent = float(data.get("done", 0.0))
             self._has_percent = True
@@ -252,9 +269,11 @@ class RunBridge(QObject):
                 self._percent = 1.0     # счёт закончен, пусть так и показывает
 
         elif kind is Kind.JOB_DONE:
+            self._loading = ""
             self._finish_file(DONE, "", data)
 
         elif kind is Kind.FAILED:
+            self._loading = ""
             state = CANCELLED if code == Code.CANCELLED else FAILED
             self._finish_file(state, code or "", data)
 

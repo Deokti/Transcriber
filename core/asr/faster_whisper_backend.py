@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Iterator
 
 from core.asr.base import Segment, TranscriptionInfo
+from core.env import models as catalog
 from core.events import Code, CoreError
 from core.profile import (SENSITIVITY_HIGH, SENSITIVITY_LOW, SENSITIVITY_MEDIUM,
                           Profile)
@@ -40,6 +41,9 @@ class FasterWhisperBackend:
     def loaded(self) -> tuple[str, str, str, int] | None:
         return self._key
 
+    def downloaded(self, model: str) -> bool:
+        return bool(self._models_dir) and catalog.is_downloaded(model, self._models_dir)
+
     def load(self, model: str, device: str, compute: str, cpu_threads: int = 0) -> float:
         """Готовит модель, возвращает потраченные секунды (0 — была готова)."""
         key = (model, device, compute, cpu_threads)
@@ -47,6 +51,13 @@ class FasterWhisperBackend:
             return 0.0
 
         from faster_whisper import WhisperModel
+
+        # Модель уже на диске — в сеть не ходим. Иначе движок на каждом
+        # запуске спрашивает HuggingFace, не появилась ли новая версия: в
+        # плохой сети этот запрос висит минутами, а окно в это время молчит
+        # и выглядит зависшим. Заодно это требование NFR-2: без нужды в
+        # сеть не ходим.
+        local_only = self.downloaded(model)
 
         started = time.monotonic()
         try:
@@ -56,6 +67,7 @@ class FasterWhisperBackend:
                 compute_type=compute,
                 cpu_threads=cpu_threads,   # 0 — на усмотрение движка
                 download_root=str(self._models_dir) if self._models_dir else None,
+                local_files_only=local_only,
             )
         except Exception as e:
             self._model = None

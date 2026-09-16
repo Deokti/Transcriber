@@ -21,6 +21,20 @@ Item {
     readonly property bool stopping: Run.state === "stopping"
     readonly property bool cancelling: Run.state === "cancelling"
 
+    // Сколько ждём остановку. Отмена доходит до ядра сразу, но встать оно
+    // может только в безопасном месте — между сегментами. Пока модель
+    // грузится, безопасного места нет, и ждать приходится до минуты.
+    // Молчащая кнопка в это время выглядит зависшей, поэтому считаем вслух.
+    property int cancelSeconds: 0
+
+    Timer {
+        running: screen.cancelling
+        repeat: true
+        interval: 1000
+        onRunningChanged: screen.cancelSeconds = 0
+        onTriggered: screen.cancelSeconds++
+    }
+
     // Показываем не всё подряд: замечания и ошибки, плюс несколько важных
     // сообщений об остановке. Поток «модель загружена, язык определён»
     // человеку во время работы не нужен.
@@ -123,7 +137,9 @@ Item {
                             text: Run.hasPercent ? Math.round(Run.percent * 100) + "%" : "—"
                             color: Run.hasPercent ? Theme.text : Theme.textIdle
                             font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontHuge
+                            // Прочерк во всю высоту процента читается как
+                            // случайная черта, поэтому он мельче.
+                            font.pixelSize: Run.hasPercent ? Theme.fontHuge : Theme.fontTitle
                             font.weight: Theme.weightSemiBold
                         }
 
@@ -145,9 +161,11 @@ Item {
                                 // Первые секунды оценки ещё нет — так и пишем,
                                 // вместо бодрого «осталось 0 минут».
                                 visible: screen.working
-                                text: Run.eta > 0 ? I18n.strings["run.eta"]
-                                                        .arg(Fmt.roughDuration(Run.eta))
-                                                  : I18n.strings["run.etaSoon"]
+                                text: Run.loadingModel !== ""
+                                    ? I18n.strings["run.loadingModel"].arg(Run.loadingModel)
+                                    : Run.eta > 0
+                                    ? I18n.strings["run.eta"].arg(Fmt.roughDuration(Run.eta))
+                                    : I18n.strings["run.etaSoon"]
                                 color: Theme.textMuted
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fontBase
@@ -308,7 +326,11 @@ Item {
 
                 Text {
                     Layout.fillWidth: true
-                    text: screen.cancelling ? I18n.strings["run.cancelling"]
+                    text: screen.cancelling
+                            ? (Run.loadingModel !== ""
+                                ? I18n.strings["run.cancellingLoad"]
+                                : I18n.strings["run.cancellingFor"])
+                              .arg(Fmt.roughDuration(screen.cancelSeconds))
                         : screen.stopping ? I18n.strings["run.stopping"]
                         : !screen.working ? screen.summaryText()
                         : I18n.strings["run.queueLeft"].arg(
