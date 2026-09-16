@@ -3,63 +3,64 @@ import QtQuick.Controls.Basic
 import Transcriber
 
 // Кнопка в трёх видах: главная (акцентом), обычная (с рамкой) и плоская
-// (без рамки — такими в макете сделаны пункты справа в полосе инструментов).
-// Ширина растёт по содержимому: надписи должны переживать перевод (D-4).
+// (без фона — такими в макете сделаны пункты справа в полосе инструментов).
+//
+// Цвета меняются мгновенно, без плавных переходов. Переход в 120 мс на
+// наведении и нажатии читается как вспышка, если состояние меняется быстро,
+// а на кнопке это происходит постоянно: нажал, отпустил, увёл курсор.
 Button {
     id: control
 
     property bool primary: false
     property bool flat_: false
 
+    // Ширину считает сам Control из содержимого и полей — своя формула
+    // от contentItem умеет дёргать раскладку на каждое изменение состояния.
+    leftPadding: flat_ ? 10 : 14
+    rightPadding: leftPadding
+    implicitWidth: Math.max(implicitContentWidth + leftPadding + rightPadding,
+                            flat_ ? 0 : 92)
     implicitHeight: primary ? Theme.hPrimary : Theme.hField
-    implicitWidth: flat_ ? contentItem.implicitWidth + 20
-                         : Math.max(contentItem.implicitWidth + 28, 92)
+
     font.family: Theme.fontFamily
     font.pixelSize: primary ? Theme.fontStrong : Theme.fontBase
-    font.weight: Font.Normal   // 14/400 и 13/400 по шкале из токенов
+    font.weight: Font.Normal      // 14/400 и 13/400 по шкале из токенов
 
     contentItem: Text {
         text: control.text
         font: control.font
-        color: {
-            if (!control.enabled)
-                return Theme.textOff
-            if (control.primary)
-                return Theme.onAccent
-            if (control.flat_)
-                return control.hovered ? Theme.text : Theme.textMuted
-            return Theme.text
-        }
+        color: !control.enabled ? Theme.textOff
+             : control.primary ? Theme.onAccent
+             : control.flat_ && !control.hovered ? Theme.textMuted
+             : Theme.text
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideRight
-
-        Behavior on color { ColorAnimation { duration: Theme.fast } }
     }
 
     background: Rectangle {
         radius: Theme.radiusField
+        border.width: (control.primary || control.flat_) ? 0 : 1
+        border.color: control.hovered ? Theme.lineStrong : Theme.line
         color: {
             if (!control.enabled)
                 return control.flat_ ? "transparent" : Theme.panel
             if (control.primary)
                 return control.down ? Qt.darker(Theme.accent, 1.15)
-                     : control.hovered ? Qt.lighter(Theme.accent, 1.08) : Theme.accent
+                     : control.hovered ? Qt.lighter(Theme.accent, 1.08)
+                     : Theme.accent
             if (control.flat_)
-                return control.down ? Theme.panel
-                     : control.hovered ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
+                return control.down ? Theme.line
+                     : control.hovered ? Theme.panel
                      : "transparent"
-            return control.down ? Qt.darker(Theme.buttonFill, 1.06)
-                 : control.hovered ? Qt.lighter(Theme.buttonFill, 1.02) : Theme.buttonFill
+            return control.down ? Theme.line
+                 : control.hovered ? Theme.panel
+                 : Theme.buttonFill
         }
-        border.width: (control.primary || control.flat_) ? 0 : 1
-        border.color: control.hovered ? Theme.lineStrong : Theme.line
-
-        Behavior on color { ColorAnimation { duration: Theme.fast } }
     }
 
-    // Курсор меняем обработчиком, а не областью мыши: область перехватывает
-    // наведение у самой кнопки, из-за чего состояние скачет и фон мигает.
+    // Курсор ставит обработчик, а не область мыши: область забирает наведение
+    // у самой кнопки, и тогда состояние начинает скакать.
     HoverHandler {
         cursorShape: control.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
     }
