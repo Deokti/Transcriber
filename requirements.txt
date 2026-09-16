@@ -1,4 +1,6 @@
 faster-whisper>=1.1
+# Интерфейс: Essentials вместо полного PySide6 — вдвое меньше и хватает с запасом
+PySide6-Essentials>=6.9
 # Библиотеки CUDA нужны только там, где есть видеокарта NVIDIA
 nvidia-cublas-cu12; platform_system != "Darwin"
 nvidia-cudnn-cu12; platform_system != "Darwin"
