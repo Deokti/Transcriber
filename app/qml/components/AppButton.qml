@@ -56,12 +56,11 @@ Button {
         border.color: control.hovered ? Theme.lineStrong : Theme.line
 
         Behavior on color { ColorAnimation { duration: Theme.fast } }
+    }
 
-        // Qt сам курсор не меняет: без этого рука над кнопкой не появится
-        MouseArea {
-            anchors.fill: parent
-            acceptedButtons: Qt.NoButton
-            cursorShape: control.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-        }
+    // Курсор меняем обработчиком, а не областью мыши: область перехватывает
+    // наведение у самой кнопки, из-за чего состояние скачет и фон мигает.
+    HoverHandler {
+        cursorShape: control.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
     }
 }
