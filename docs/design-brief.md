@@ -1,6 +1,6 @@
 # Бриф на дизайн интерфейса — Transcriber
 
-Черновик 2 · 16.09.2026 · вход для работы в Claude Design
+Черновик 2 · 16.09.2026 · задание на отрисовку макетов
 Опирается на `requirements.md`, `architecture.md`, [ADR-0002](adr/0002-qml-vs-widgets-vs-web.md)
 
 ---
