@@ -23,7 +23,6 @@ Item {
             spacing: Theme.gapButtons
 
             AppButton { text: "Выбрать файлы…" }
-            AppButton { text: "Добавить очередь из 5" }
 
             Item { Layout.fillWidth: true }
 
