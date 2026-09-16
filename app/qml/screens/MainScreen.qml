@@ -18,34 +18,6 @@ Item {
     property var files: []
     property bool hasFiles: files.length > 0
 
-    // --- вспомогательное -------------------------------------------------
-    function tr(key, fallback) {
-        const value = I18n.strings[key]
-        return value !== undefined ? value : fallback
-    }
-
-    function languageName(code) {
-        return tr("lang." + code, code)
-    }
-
-    function modelText(entry) {
-        const langs = entry.languages === "en" ? I18n.strings["model.enOnly"]
-                                               : I18n.strings["model.multi"]
-        const size = (entry.size_mb / 1024).toFixed(1) + " " + I18n.strings["unit.gb"]
-        const state = entry.downloaded ? "" : " · " + I18n.strings["model.notDownloaded"]
-        return entry.id + " · " + langs + " · " + size + state
-    }
-
-    function deviceText(entry) {
-        if (entry.id !== "cuda")
-            return I18n.strings["asr.device.cpu"]
-        return Env.gpuName !== "" ? Env.gpuName : I18n.strings["asr.device.gpu"]
-    }
-
-    function gigabytes(bytes) {
-        return (bytes / 1024 / 1024 / 1024).toFixed(0) + " " + I18n.strings["unit.gb"]
-    }
-
     FolderDialog {
         id: outputPicker
         onAccepted: Task.setOutputDir(selectedFolder)
@@ -113,12 +85,9 @@ Item {
                         Layout.alignment: Qt.AlignVCenter
                         spacing: Theme.gapButtons
 
-                        Text {
+                        SectionTitle {
                             text: I18n.strings["main.emptyTitle"]
-                            color: Theme.text
-                            font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSection
-                            font.weight: Theme.weightSemiBold
                         }
                         Text {
                             Layout.fillWidth: true
@@ -147,12 +116,9 @@ Item {
                         Layout.alignment: Qt.AlignTop
                         spacing: 6
 
-                        Text {
+                        SectionTitle {
                             text: I18n.strings["main.ready"]
-                            color: Theme.text
-                            font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSmall
-                            font.weight: Theme.weightSemiBold
                         }
 
                         // Настоящее состояние машины, а не четыре галочки
@@ -180,7 +146,7 @@ Item {
                                 {
                                     ok: Env.freeBytes > 5 * 1024 * 1024 * 1024,
                                     text: I18n.strings["ready.free"].arg(
-                                        screen.gigabytes(Env.freeBytes))
+                                        Fmt.gigabytes(Env.freeBytes))
                                 }
                             ]
 
@@ -234,13 +200,7 @@ Item {
                         anchors.margins: Theme.padPanel
                         spacing: 10
 
-                        Text {
-                            text: I18n.strings["sound.title"]
-                            color: Theme.text
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontBase
-                            font.weight: Theme.weightSemiBold
-                        }
+                        SectionTitle { text: I18n.strings["sound.title"] }
                         ComboField {
                             Layout.fillWidth: true
                             label: I18n.strings["sound.denoise"]
@@ -277,17 +237,11 @@ Item {
                         anchors.margins: Theme.padPanel
                         spacing: 10
 
-                        Text {
-                            text: I18n.strings["asr.title"]
-                            color: Theme.text
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontBase
-                            font.weight: Theme.weightSemiBold
-                        }
+                        SectionTitle { text: I18n.strings["asr.title"] }
                         ComboField {
                             Layout.fillWidth: true
                             label: I18n.strings["asr.language"]
-                            model: Env.languages.map(screen.languageName)
+                            model: Env.languages.map(function (c) { return Fmt.languageName(c) })
                             values: Env.languages
                             value: Task.language
                             onChosen: function (code) { Task.setLanguage(code) }
@@ -299,7 +253,7 @@ Item {
                             // в списке, но выбрать её нельзя (требование FR-35)
                             model: Env.models.map(function (m) {
                                 return {
-                                    text: screen.modelText(m),
+                                    text: Fmt.modelText(m),
                                     disabled: m.languages === "en" && Task.language !== "en"
                                 }
                             })
@@ -311,12 +265,12 @@ Item {
                             Layout.fillWidth: true
                             label: I18n.strings["asr.device"]
                             model: Env.devices.map(function (d) {
-                                return { text: screen.deviceText(d), disabled: !d.available }
+                                return { text: Fmt.deviceText(d), disabled: !d.available }
                             })
                             values: Env.devices.map(function (d) { return d.id })
                             value: Task.device
                             hint: Env.gpuAvailable ? ""
-                                : screen.tr("device.reason." + Env.gpuReason, "")
+                                : Fmt.tr("device.reason." + Env.gpuReason, "")
                             onChosen: function (id) { Task.setDevice(id) }
                         }
                     }
@@ -334,19 +288,13 @@ Item {
                         anchors.margins: Theme.padPanel
                         spacing: 10
 
-                        Text {
-                            text: I18n.strings["out.title"]
-                            color: Theme.text
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontBase
-                            font.weight: Theme.weightSemiBold
-                        }
+                        SectionTitle { text: I18n.strings["out.title"] }
                         ComboField {
                             Layout.fillWidth: true
                             label: I18n.strings["out.format"]
                             // Показываем только то, что ядро умеет собрать
                             model: Env.formats.map(function (f) {
-                                return screen.tr("format." + f, f.toUpperCase())
+                                return Fmt.tr("format." + f, f.toUpperCase())
                             })
                             values: Env.formats
                             value: Task.format
@@ -433,8 +381,8 @@ Item {
                         text: [
                             I18n.strings["advanced.chunk"].arg(Task.chunkLength),
                             I18n.strings["advanced.sensitivity"].arg(
-                                screen.tr("sensitivity." + Task.sensitivity, Task.sensitivity)),
-                            screen.tr("temp." + Task.tempAction, Task.tempAction)
+                                Fmt.tr("sensitivity." + Task.sensitivity, Task.sensitivity)),
+                            Fmt.tr("temp." + Task.tempAction, Task.tempAction)
                         ].join(" · ")
                         color: Theme.textMuted
                         font.family: Theme.fontFamily
@@ -508,7 +456,7 @@ Item {
                     Env.ffmpegOk ? I18n.strings["ready.ffmpeg"].arg(Env.ffmpegVersion)
                                  : I18n.strings["ready.ffmpegMissing"],
                     Task.model,
-                    I18n.strings["ready.free"].arg(screen.gigabytes(Env.freeBytes))
+                    I18n.strings["ready.free"].arg(Fmt.gigabytes(Env.freeBytes))
                 ].join(" · ")
                 color: Theme.textMuted
                 font.family: Theme.fontFamily

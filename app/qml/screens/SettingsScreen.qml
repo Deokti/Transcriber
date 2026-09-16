@@ -38,12 +38,9 @@ Item {
                 flat_: true
                 onClicked: screen.back()
             }
-            Text {
+            SectionTitle {
                 text: I18n.strings["settings.title"]
-                color: Theme.text
-                font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSection
-                font.weight: Theme.weightSemiBold
             }
             Item { Layout.fillWidth: true }
             // Молчим, пока всё сохранено: сообщать стоит о том, что требует
@@ -68,13 +65,7 @@ Item {
                 anchors.margins: Theme.padPanel
                 spacing: 12
 
-                Text {
-                    text: I18n.strings["settings.interface"]
-                    color: Theme.text
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontBase
-                    font.weight: Theme.weightSemiBold
-                }
+                SectionTitle { text: I18n.strings["settings.interface"] }
 
                 RowLayout {
                     Layout.fillWidth: true
@@ -116,13 +107,7 @@ Item {
                 anchors.margins: Theme.padPanel
                 spacing: 14
 
-                Text {
-                    text: I18n.strings["settings.folders"]
-                    color: Theme.text
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontBase
-                    font.weight: Theme.weightSemiBold
-                }
+                SectionTitle { text: I18n.strings["settings.folders"] }
 
                 FolderRow {
                     Layout.fillWidth: true
