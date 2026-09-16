@@ -6,14 +6,11 @@
 from __future__ import annotations
 
 from core.context import RunContext
-from core.events import Kind, Stage
-from core.events import Code
+from core.events import Code, Kind, Stage
+from core.export import SUPPORTED
 from core.export import text as text_export
 from core.job import Job
 from core.profile import LAYOUT_PLAIN
-
-#: Что умеем на этапе M1. Остальное (md, docx, srt) — этап M5.
-SUPPORTED = {"txt"}
 
 
 def run(job: Job, ctx: RunContext) -> None:
