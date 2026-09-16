@@ -24,6 +24,7 @@ from core.events import Code, CoreError, Event, Kind
 from core.job import Job, JobState
 from core.media import MEDIA_EXT, ensure_tools
 from core.pipeline import run_job
+from core.settings import Settings
 from core.profile import (LAYOUT_PLAIN, LAYOUT_TIMECODES, TARGET_AUDIO, TARGET_TEXT,
                           TEMP_DELETE, TEMP_KEEP, TEMP_MOVE, Profile)
 from core.timecode import hms
@@ -70,6 +71,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--report", type=float, help="шаг отчёта о прогрессе, минут аудио")
     p.add_argument("--profile", help="взять настройки из файла")
     p.add_argument("--save-profile", help="сохранить получившиеся настройки в файл")
+    p.add_argument("--models-dir", help="где держать модели (по умолчанию — папка данных)")
+    p.add_argument("--ffmpeg-dir", help="где искать ffmpeg")
+    p.add_argument("--save-settings", action="store_true",
+                   help="запомнить --models-dir и --ffmpeg-dir для следующих запусков")
     return p.parse_args(argv)
 
 
@@ -184,6 +189,14 @@ def main(argv: list[str] | None = None) -> int:
         print(stamped, flush=True)
         logfile.write(stamped + "\n")
 
+    settings = Settings.load()
+    if args.models_dir:
+        settings.models_dir = args.models_dir
+    if args.ffmpeg_dir:
+        settings.ffmpeg_dir = args.ffmpeg_dir
+    if args.save_settings:
+        print(f"[i] настройки сохранены: {settings.save()}")
+
     files = expand(args.inputs)
     if not files:
         print("Нечего обрабатывать: укажите файл, папку или маску.")
@@ -195,14 +208,16 @@ def main(argv: list[str] | None = None) -> int:
         profile.save(Path(args.save_profile))
 
     try:
-        tools = ensure_tools([paths.bin])
+        tools = ensure_tools(settings.extra_tool_dirs())
     except CoreError as e:
         say(Event(Kind.FAILED, None, e.code, data=e.data))
         return 1
+    models_dir = settings.resolve_models_dir()
     print(f"[i] ffmpeg: {tools.ffmpeg}")
     print(f"[i] данные: {paths.root}")
+    print(f"[i] модели: {models_dir}")
 
-    backend = FasterWhisperBackend(paths.models)
+    backend = FasterWhisperBackend(models_dir)
     ctx = RunContext(paths=paths, tools=tools, backend=backend, emit=say,
                      should_cancel=lambda: _cancel)
 
