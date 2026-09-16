@@ -63,7 +63,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--no-vad", action="store_true", help="не отрезать тишину")
     p.add_argument("--cpt", action="store_true",
                    help="включить condition_on_previous_text (по умолчанию выключен: залипания)")
-    p.add_argument("--denoise", action="store_true", help="шумоподавление")
+    p.add_argument("--denoise", nargs="?", const="medium",
+                   choices=["off", "medium", "strong"],
+                   help="шумоподавление: medium по умолчанию")
     p.add_argument("--trim-silence", action="store_true",
                    help="обрезать тишину по краям (середина не трогается)")
     p.add_argument("--sensitivity", choices=["low", "medium", "high"],
@@ -111,7 +113,7 @@ def build_profile(args: argparse.Namespace) -> Profile:
     if args.cpt:
         profile.condition_on_previous_text = True
     if args.denoise:
-        profile.denoise = True
+        profile.denoise = args.denoise
     if args.trim_silence:
         profile.trim_silence = True
     if args.sensitivity:

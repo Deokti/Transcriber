@@ -47,6 +47,11 @@ ColumnLayout {
         implicitHeight: Theme.hField
         // Иначе длинный пункт списка растягивает всю колонку
         implicitWidth: 160
+
+        // Список бывает двух видов: просто надписи или объекты с пометкой
+        // «выбрать нельзя». Во втором случае Qt нужно сказать, где надпись,
+        // иначе поле останется пустым.
+        textRole: (model && model.length && typeof model[0] === "object") ? "text" : ""
         enabled: root.enabled_
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontBase

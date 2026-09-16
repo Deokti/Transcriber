@@ -80,6 +80,24 @@ def ensure_tools(extra_dirs: list[Path] | None = None) -> Tools:
     return Tools(ffmpeg, ffprobe)
 
 
+def version(ffmpeg: Path) -> str:
+    """Версия ffmpeg одной строкой, например «7.0». Пусто — не разобрали."""
+    try:
+        result = subprocess.run([str(ffmpeg), "-version"], capture_output=True,
+                                text=True, encoding="utf-8", errors="replace", timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    if result.returncode != 0 or not result.stdout:
+        return ""
+    words = result.stdout.split()
+    if len(words) < 3:
+        return ""
+    raw = words[2]
+    if raw[:1].isdigit():
+        return ".".join(raw.split(".")[:2])      # 7.0.2 -> 7.0
+    return "-".join(raw.split("-")[:2])          # N-122224-g50e5c -> N-122224
+
+
 def probe(ffprobe: Path, path: Path) -> MediaInfo:
     """Длительность, наличие картинки и список аудиодорожек."""
     cmd = [str(ffprobe), "-v", "error", "-print_format", "json",
@@ -121,13 +139,18 @@ def probe(ffprobe: Path, path: Path) -> MediaInfo:
 SILENCE_DB = "-45dB"
 
 
-def build_filters(loudnorm: bool = True, denoise: bool = False,
+#: Насколько сильно давим шум. Сильная чистка заметно съедает окончания слов.
+DENOISE_FILTERS = {
+    "medium": ["highpass=f=80", "afftdn=nf=-25"],
+    "strong": ["highpass=f=100", "afftdn=nf=-40", "afftdn=nf=-40"],
+}
+
+
+def build_filters(loudnorm: bool = True, denoise: str = "off",
                   trim_silence: bool = False) -> str:
     """Цепочка -af. Порядок важен: чистим, режем края, равняем громкость."""
     chain = []
-    if denoise:
-        chain.append("highpass=f=80")    # убрать гул ниже речи
-        chain.append("afftdn=nf=-25")    # спектральное шумоподавление
+    chain += DENOISE_FILTERS.get(denoise, [])
     if trim_silence:
         # Срезаем тишину только по краям: в начале — напрямую, в конце —
         # тем же приёмом на развёрнутом звуке. Середина не трогается,
@@ -146,7 +169,7 @@ def extract_audio(
     *,
     track: int = 0,
     loudnorm: bool = True,
-    denoise: bool = False,
+    denoise: str = "off",
     trim_silence: bool = False,
     duration: float = 0.0,
     on_progress: Callable[[float, float], None] | None = None,

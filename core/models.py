@@ -64,6 +64,30 @@ def for_language(language: str) -> list[ModelInfo]:
     return [m for m in CATALOG if m.supports(language)]
 
 
+def is_downloaded(model_id: str, models_dir) -> bool:
+    """Лежит ли модель на диске.
+
+    Ищем и свою папку, и кеш HuggingFace — папку моделей можно указать
+    на уже скачанные (решение про models_dir в настройках).
+    """
+    from pathlib import Path
+
+    root = Path(models_dir)
+    if not root.is_dir():
+        return False
+    if (root / model_id).is_dir():
+        return True
+    needle = model_id.lower()
+    for child in root.iterdir():
+        name = child.name.lower()
+        if not child.is_dir() or not name.startswith("models--"):
+            continue
+        # models--Systran--faster-whisper-large-v3 -> large-v3
+        if name.endswith("--" + needle) or name.endswith("-" + needle):
+            return any(child.rglob("model.bin"))
+    return False
+
+
 def as_data() -> list[dict]:
     """Каталог целиком — для интерфейса, который сам решит, что показать."""
     return [m.as_data() for m in CATALOG]

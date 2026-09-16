@@ -1,20 +1,10 @@
-"""Мост между окном и ядром.
-
-Единственное место, где интерфейс встречается с `core`. Всё остальное в QML
-работает со свойствами и сигналами этого объекта, ничего не зная ни про
-faster-whisper, ни про ffmpeg (принципы П-1 и П-2).
-
-Пока здесь только настройки. Очередь, прогресс и результат приедут сюда же
-следующими объектами.
-"""
+"""Настройки приложения: язык интерфейса, тема, папки."""
 from __future__ import annotations
 
-from pathlib import Path
-
-from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtCore import Property, QObject, Qt, Signal, Slot
 from PySide6.QtGui import QGuiApplication
-from PySide6.QtCore import Qt
 
+from app.bridge.paths import clean
 from core import platform
 from core.settings import Settings
 
@@ -24,7 +14,7 @@ THEME_DARK = "dark"
 
 
 class SettingsBridge(QObject):
-    """Настройки приложения: язык, тема, папки."""
+    """То, что относится к машине и вкусам, а не к конкретной записи."""
 
     changed = Signal()
     savedChanged = Signal()
@@ -35,6 +25,11 @@ class SettingsBridge(QObject):
         self._saved = True
         scheme = QGuiApplication.styleHints().colorSchemeChanged
         scheme.connect(self.changed)   # система переключила тему — пересчитаем
+
+    @property
+    def raw(self) -> Settings:
+        """Настройки как есть — для мостов, которым нужны пути."""
+        return self._settings
 
     # --- язык ---------------------------------------------------------
     @Property(str, notify=changed)
@@ -93,15 +88,15 @@ class SettingsBridge(QObject):
 
     @Slot(str)
     def setModelsDir(self, value: str) -> None:
-        self._update(models_dir=_clean(value))
+        self._update(models_dir=clean(value))
 
     @Slot(str)
     def setOutputDir(self, value: str) -> None:
-        self._update(output_dir=_clean(value))
+        self._update(output_dir=clean(value))
 
     @Slot(str)
     def setFfmpegDir(self, value: str) -> None:
-        self._update(ffmpeg_dir=_clean(value))
+        self._update(ffmpeg_dir=clean(value))
 
     @Slot()
     def save(self) -> None:
@@ -117,11 +112,3 @@ class SettingsBridge(QObject):
         self._saved = False
         self.savedChanged.emit()
         self.changed.emit()
-
-
-def _clean(value: str) -> str:
-    """Путь из файлового диалога приходит как file:///C:/… — приводим к обычному."""
-    value = (value or "").strip()
-    if value.startswith("file:///"):
-        value = value[8:] if len(value) > 9 and value[9] == ":" else value[7:]
-    return str(Path(value)) if value else ""

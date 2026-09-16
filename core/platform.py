@@ -216,6 +216,22 @@ def cuda_device_count() -> int:
         return 0
 
 
+def gpu_name() -> str:
+    """Название видеокарты, как его показывает драйвер. Пусто — не спросили."""
+    if system_name() == "macos":
+        return ""
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+            capture_output=True, text=True, timeout=5,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return result.stdout.strip().splitlines()[0].strip() if result.returncode == 0 else ""
+
+
 def devices() -> list[Device]:
     """Что можно выбрать на этой машине и почему нельзя остальное."""
     cpu = Device("cpu", True)

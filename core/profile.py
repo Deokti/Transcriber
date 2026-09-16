@@ -21,6 +21,12 @@ TARGET_AUDIO = "audio"
 LAYOUT_TIMECODES = "timecodes"
 LAYOUT_PLAIN = "plain"
 
+#: Шумоподавление. В макете это три ступени, а не галочка: слабая чистка
+#: убирает гул, сильная съедает окончания слов — выбор за человеком.
+DENOISE_OFF = "off"
+DENOISE_MEDIUM = "medium"
+DENOISE_STRONG = "strong"
+
 #: Чувствительность к речи. Выше — в текст попадёт больше тихой речи,
 #: ниже — меньше шума и случайных фраз на паузах.
 SENSITIVITY_LOW = "low"
@@ -42,7 +48,7 @@ class Profile:
 
     # подготовка звука
     loudnorm: bool = True
-    denoise: bool = False
+    denoise: str = DENOISE_OFF
     trim_silence: bool = False       # обрезать тишину по краям записи
     track: int = 0
     skip_prepare: bool = False       # отдать исходник движку как есть

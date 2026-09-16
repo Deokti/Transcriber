@@ -29,7 +29,7 @@ def start(*, theme: str | None = None, language: str = "ru", screen: str = "main
     from PySide6.QtQml import QQmlApplicationEngine
     from PySide6.QtQuickControls2 import QQuickStyle
 
-    from app.bridge import SettingsBridge
+    from app.bridge import EnvBridge, ProfileBridge, SettingsBridge
     from app.i18n import I18n
     from app.main import QML_DIR, _load_dev_fonts
 
@@ -40,6 +40,8 @@ def start(*, theme: str | None = None, language: str = "ru", screen: str = "main
     settings = SettingsBridge()
     if theme:
         settings.setTheme(theme)
+    env = EnvBridge(settings)
+    task = ProfileBridge(settings)
     i18n = I18n(language)
     settings.changed.connect(lambda: i18n.setLanguage(settings.language))
 
@@ -49,13 +51,16 @@ def start(*, theme: str | None = None, language: str = "ru", screen: str = "main
     context.setContextProperty("forcedTheme", "")
     context.setContextProperty("Settings", settings)
     context.setContextProperty("I18n", i18n)
+    context.setContextProperty("Env", env)
+    context.setContextProperty("Task", task)
     engine.setInitialProperties({"screen": screen})
     engine.load(QUrl.fromLocalFile(str(QML_DIR / "Main.qml")))
     assert engine.rootObjects(), "окно не загрузилось"
 
     # Движок держим от сборщика мусора: без ссылки окно исчезнет вместе с ним.
     window = engine.rootObjects()[0]
-    window._engine = engine
+    # Держим от сборщика мусора: без ссылок окно исчезнет вместе с ними.
+    window._keep = (engine, env, task)
     return app, window, settings, i18n
 
 
