@@ -1,0 +1,21 @@
+# В репозитории всё хранится и выдаётся с LF.
+# Без этого файл, сохранённый на Windows, отличается от маковского
+# на каждой строке, и любой diff становится нечитаемым.
+* text=auto eol=lf
+
+# Скрипты, которые запускает Windows, требуют CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Бинарное не трогать
+*.png binary
+*.jpg binary
+*.ico binary
+*.icns binary
+*.ttf binary
+*.otf binary
+*.wav binary
+*.mp3 binary
+*.mp4 binary
+*.mkv binary

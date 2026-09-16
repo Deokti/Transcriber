@@ -1,0 +1,49 @@
+# Виртуальное окружение
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Скомпилированный QML
+*.qmlc
+*.jsc
+
+# Папка данных приложения: качается и создаётся на месте (решение D-5)
+data/
+models/
+temp/
+logs/
+
+# Рабочие папки и результаты распознавания
+input/
+output/
+*.segments.jsonl
+
+# Сборка (файл .spec от PyInstaller — исходник, его версионируем)
+build/
+dist/
+
+# Медиа: тестовые записи весят сотни мегабайт.
+# Нужный файл-образец добавлять принудительно: git add -f
+*.mkv
+*.mp4
+*.mov
+*.avi
+*.webm
+*.m4a
+*.mp3
+*.wav
+*.flac
+*.opus
+
+# Системное и редакторы
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
