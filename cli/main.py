@@ -19,10 +19,10 @@ from pathlib import Path
 from cli import messages
 from core import platform
 from core.asr.faster_whisper_backend import FasterWhisperBackend
+from core.env import models
 from core.events import Code, CoreError, Event, Kind
 from core.job import Job, JobState
 from core.media import MEDIA_EXT, ensure_tools
-from core import models
 from core.runner import JobRunner
 from core.settings import Settings
 from core.profile import (LAYOUT_PLAIN, LAYOUT_TIMECODES, TARGET_AUDIO, TARGET_TEXT,

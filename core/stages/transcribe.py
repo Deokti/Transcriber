@@ -4,8 +4,8 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-from core import models
 from core.context import RunContext
+from core.env import models
 from core.events import Code, CoreError, Kind, Stage
 from core.export import segments as segments_file
 from core.job import Job
