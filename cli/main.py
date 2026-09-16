@@ -147,6 +147,20 @@ def build_profile(args: argparse.Namespace) -> Profile:
     return profile
 
 
+def _by_mask(item: str) -> list[Path]:
+    """Раскрывает маску, не спотыкаясь о скобки в именах папок.
+
+    Для glob квадратные скобки — набор символов, а в названии курса они
+    просто скобки. Поэтому существующую часть пути экранируем, а звёздочку
+    оставляем там, ради чего маску и писали.
+    """
+    pattern = Path(item).expanduser()
+    parent = pattern.parent
+    if parent.is_dir():
+        item = str(Path(glob.escape(str(parent))) / pattern.name)
+    return [Path(p) for p in sorted(glob.glob(item))]
+
+
 def expand(inputs: list[str]) -> list[Path]:
     """Раскрывает маски и папки: PowerShell маски сам не раскрывает."""
     found: list[Path] = []
@@ -155,11 +169,14 @@ def expand(inputs: list[str]) -> list[Path]:
         if path.is_dir():
             found += [p for p in sorted(path.iterdir())
                       if p.is_file() and p.suffix.lower() in MEDIA_EXT]
-        elif any(ch in item for ch in "*?["):
-            found += [Path(p) for p in sorted(glob.glob(item))
-                      if Path(p).is_file() and Path(p).suffix.lower() in MEDIA_EXT]
         elif path.is_file():
+            # Проверяем раньше маски: в имени папки с курсом легко живут
+            # квадратные скобки, а для маски это набор символов, и
+            # существующий файл пропадал молча.
             found.append(path)
+        elif any(ch in item for ch in "*?["):
+            found += [p for p in _by_mask(item)
+                      if p.is_file() and p.suffix.lower() in MEDIA_EXT]
         else:
             print(f"[!] не найдено: {item}")
 
