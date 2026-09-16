@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 import harness   # ставит корень проекта в путь импорта  # noqa: F401
@@ -23,6 +24,23 @@ from PySide6.QtGui import QGuiApplication
 from app.bridge import QueueBridge, SettingsBridge
 
 NAME = "Лекция 1 — введение.mp3"
+
+
+def _clean(folder: Path) -> None:
+    """Убирает за собой, не споря с ffprobe.
+
+    Разбор идёт в рабочих потоках, и файл может быть ещё открыт: на Windows
+    это отказ в доступе. Ждём немного, а не сумеем — оставляем системе:
+    временная папка не стоит упавшего теста.
+    """
+    for _ in range(20):
+        try:
+            for item in folder.iterdir():
+                item.unlink()
+            folder.rmdir()
+            return
+        except OSError:
+            time.sleep(0.1)
 
 
 def main() -> int:
@@ -50,8 +68,7 @@ def main() -> int:
     if queue.count != 1:
         problems.append(f"папка развёрнута неверно: файлов {queue.count}")
 
-    source.unlink()
-    folder.rmdir()
+    _clean(folder)
 
     if problems:
         print("ПРОВАЛ: " + "; ".join(problems))

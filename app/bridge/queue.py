@@ -50,19 +50,19 @@ class _ProbeTask(QRunnable):
         try:
             info = probe(self._ffprobe, self._path)
         except CoreError as error:
-            self._signals.failed.emit(str(self._path), error.code)
+            self._say(self._signals.failed, str(self._path), error.code)
             return
         except Exception:
             # Неожиданное — тоже ответ: строка покажет, что файл не прочитан,
             # а очередь продолжит жить (FR-3: ошибка на одном не роняет остальные).
-            self._signals.failed.emit(str(self._path), Code.FFPROBE_FAILED)
+            self._say(self._signals.failed, str(self._path), Code.FFPROBE_FAILED)
             return
 
         if not info.audio:
-            self._signals.failed.emit(str(self._path), Code.NO_AUDIO_TRACK)
+            self._say(self._signals.failed, str(self._path), Code.NO_AUDIO_TRACK)
             return
 
-        self._signals.done.emit(str(self._path), {
+        self._say(self._signals.done, str(self._path), {
             "duration": float(info.duration),
             "video": bool(info.has_video),
             "container": info.container,
@@ -70,6 +70,18 @@ class _ProbeTask(QRunnable):
                         "lang": t.lang, "title": t.title, "default": t.default}
                        for t in info.audio],
         })
+
+    @staticmethod
+    def _say(signal, *args) -> None:
+        """Отвечает, если есть кому.
+
+        Окно могли закрыть, пока мы читали файл. Тогда получателя уже нет,
+        и попытка ответить роняет рабочий поток — без всякой пользы.
+        """
+        try:
+            signal.emit(*args)
+        except RuntimeError:
+            pass
 
 
 class QueueBridge(QObject):
