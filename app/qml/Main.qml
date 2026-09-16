@@ -8,6 +8,8 @@ import "screens"
 Window {
     id: root
 
+    property string screen: "main"
+
     width: 1080
     height: 720
     minimumWidth: Theme.minWidth
@@ -16,13 +18,25 @@ Window {
     title: "Transcriber"
     color: Theme.window
 
-    // Тёмная тема включается по системе; переключатель будет в настройках.
-    Component.onCompleted: Theme.dark =
-        forcedTheme === "dark" ? true
-      : forcedTheme === "light" ? false
-      : (Qt.styleHints.colorScheme === Qt.Dark)
+    // Тема приходит из настроек: там же живёт вариант «как в системе».
+    // forcedTheme — только для снимков при разработке.
+    Binding {
+        target: Theme
+        property: "dark"
+        value: forcedTheme === "dark" ? true
+             : forcedTheme === "light" ? false
+             : Settings.isDark
+    }
 
     MainScreen {
         anchors.fill: parent
+        visible: root.screen === "main"
+        onOpenSettings: root.screen = "settings"
+    }
+
+    SettingsScreen {
+        anchors.fill: parent
+        visible: root.screen === "settings"
+        onBack: root.screen = "main"
     }
 }

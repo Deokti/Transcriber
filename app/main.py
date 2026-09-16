@@ -13,6 +13,9 @@ from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 
+from app.bridge import SettingsBridge
+from app.i18n import I18n
+
 HERE = Path(__file__).resolve().parent
 QML_DIR = HERE / "qml"
 ICON_DIR = HERE / "icons"
@@ -82,6 +85,18 @@ def main(argv: list[str] | None = None) -> int:
         forced_theme = "light"
         argv.remove("--light")
 
+    ui_lang = ""
+    if "--ui-lang" in argv:
+        index = argv.index("--ui-lang")
+        ui_lang = argv[index + 1]
+        del argv[index:index + 2]
+
+    start_screen = ""
+    if "--screen" in argv:
+        index = argv.index("--screen")
+        start_screen = argv[index + 1]
+        del argv[index:index + 2]
+
     shot: str | None = None
     if "--shot" in argv:
         index = argv.index("--shot")
@@ -100,9 +115,19 @@ def main(argv: list[str] | None = None) -> int:
     if shot:
         _load_dev_fonts()
 
+    settings = SettingsBridge()
+    i18n = I18n(ui_lang or settings.language)
+    # Язык меняют в настройках — каталог переключается следом
+    settings.changed.connect(lambda: i18n.setLanguage(settings.language))
+
     engine = QQmlApplicationEngine()
     engine.addImportPath(str(QML_DIR))
-    engine.rootContext().setContextProperty("forcedTheme", forced_theme)
+    context = engine.rootContext()
+    context.setContextProperty("forcedTheme", forced_theme)
+    context.setContextProperty("Settings", settings)
+    context.setContextProperty("I18n", i18n)
+    if start_screen:
+        engine.setInitialProperties({"screen": start_screen})
     engine.load(QUrl.fromLocalFile(str(QML_DIR / "Main.qml")))
     if not engine.rootObjects():
         return 1

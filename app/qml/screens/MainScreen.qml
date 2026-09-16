@@ -9,6 +9,8 @@ import "../components"
 Item {
     id: screen
 
+    signal openSettings()
+
     property var files: []
     property bool hasFiles: files.length > 0
 
@@ -22,13 +24,17 @@ Item {
             Layout.fillWidth: true
             spacing: Theme.gapButtons
 
-            AppButton { text: "Выбрать файлы…" }
+            AppButton { text: I18n.strings["action.chooseFiles"] }
 
             Item { Layout.fillWidth: true }
 
-            AppButton { text: "Хранилище"; flat_: true }
-            AppButton { text: "Диагностика"; flat_: true }
-            AppButton { text: "Настройки"; flat_: true }
+            AppButton { text: I18n.strings["nav.storage"]; flat_: true }
+            AppButton { text: I18n.strings["nav.diagnostics"]; flat_: true }
+            AppButton {
+                text: I18n.strings["nav.settings"]
+                flat_: true
+                onClicked: screen.openSettings()
+            }
         }
 
         // --- пусто или очередь -----------------------------------------
@@ -47,7 +53,7 @@ Item {
                     spacing: Theme.gapButtons
 
                     Text {
-                        text: "Выберите запись — или перетащите её в окно"
+                        text: I18n.strings["main.emptyTitle"]
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSection
@@ -59,9 +65,7 @@ Item {
                         Layout.maximumWidth: Theme.textWidth
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
-                        text: "MP4, MKV, MOV, MP3, WAV, M4A и другие. Час записи " +
-                              "превращается в документ примерно за 19 минут на видеокарте. " +
-                              "Всё считается на этом компьютере, ничего не уходит в сеть."
+                        text: I18n.strings["main.emptyHint"]
                         color: Theme.textMuted
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSmall
@@ -69,8 +73,8 @@ Item {
                     RowLayout {
                         Layout.alignment: Qt.AlignHCenter
                         spacing: Theme.gapButtons
-                        AppButton { text: "Выбрать файлы…"; primary: true }
-                        AppButton { text: "Выбрать папку…" }
+                        AppButton { text: I18n.strings["action.chooseFiles"]; primary: true }
+                        AppButton { text: I18n.strings["action.chooseFolder"] }
                     }
                 }
             }
@@ -86,7 +90,7 @@ Item {
                     spacing: 6
 
                     Text {
-                        text: "Готово к работе"
+                        text: I18n.strings["main.ready"]
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontBase
@@ -144,7 +148,7 @@ Item {
                     spacing: 10
 
                     Text {
-                        text: "Звук"
+                        text: I18n.strings["sound.title"]
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontBase
@@ -152,12 +156,14 @@ Item {
                     }
                     ComboField {
                         Layout.fillWidth: true
-                        label: "Шумоподавление"
-                        model: ["Выключено", "Умеренное", "Сильное"]
+                        label: I18n.strings["sound.denoise"]
+                        model: [I18n.strings["sound.denoise.off"],
+                                I18n.strings["sound.denoise.medium"],
+                                I18n.strings["sound.denoise.strong"]]
                         currentIndex: 1
                     }
-                    CheckField { text: "Выровнять громкость"; checked: true }
-                    CheckField { text: "Обрезать тишину по краям"; checked: true }
+                    CheckField { text: I18n.strings["sound.loudnorm"]; checked: true }
+                    CheckField { text: I18n.strings["sound.trimSilence"]; checked: true }
                     Item { Layout.fillHeight: true }
                 }
             }
@@ -175,7 +181,7 @@ Item {
                     spacing: 10
 
                     Text {
-                        text: "Распознавание"
+                        text: I18n.strings["asr.title"]
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontBase
@@ -183,20 +189,21 @@ Item {
                     }
                     ComboField {
                         Layout.fillWidth: true
-                        label: "Язык записи"
+                        label: I18n.strings["asr.language"]
                         model: ["Русский", "English", "Deutsch"]
                     }
                     ComboField {
                         Layout.fillWidth: true
-                        label: "Модель"
+                        label: I18n.strings["asr.model"]
                         model: ["large-v3 · 99 языков, лучшее качество",
                                 "large-v3-turbo · быстрее, качество чуть ниже",
                                 "medium · быстрее и слабее"]
                     }
                     ComboField {
                         Layout.fillWidth: true
-                        label: "Считать на"
-                        model: ["Видеокарте NVIDIA RTX 5070 Ti", "Процессоре"]
+                        label: I18n.strings["asr.device"]
+                        model: [I18n.strings["asr.device.gpu"] + " NVIDIA RTX 5070 Ti",
+                                I18n.strings["asr.device.cpu"]]
                     }
                 }
             }
@@ -214,7 +221,7 @@ Item {
                     spacing: 10
 
                     Text {
-                        text: "Результат"
+                        text: I18n.strings["out.title"]
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontBase
@@ -222,18 +229,20 @@ Item {
                     }
                     ComboField {
                         Layout.fillWidth: true
-                        label: "Формат документа"
+                        label: I18n.strings["out.format"]
                         model: ["DOCX", "DOCX и SRT", "TXT", "Markdown"]
                     }
                     ComboField {
                         Layout.fillWidth: true
-                        label: "Оформление"
-                        model: ["Абзацы с тайм-кодами", "Сплошной текст"]
+                        label: I18n.strings["out.layout"]
+                        model: [I18n.strings["out.layout.timecodes"],
+                                I18n.strings["out.layout.plain"]]
                     }
                     ComboField {
                         Layout.fillWidth: true
-                        label: "Куда положить"
-                        model: ["Рядом с исходным", "Выбрать папку…"]
+                        label: I18n.strings["out.where"]
+                        model: [I18n.strings["out.where.nextToSource"],
+                                I18n.strings["action.chooseFolder"]]
                     }
                 }
             }
@@ -256,7 +265,7 @@ Item {
                     font.pixelSize: Theme.fontSection
                 }
                 Text {
-                    text: "Дополнительно"
+                    text: I18n.strings["advanced.title"]
                     color: Theme.text
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontBase
@@ -283,14 +292,15 @@ Item {
             ColumnLayout {
                 spacing: 2
                 Text {
-                    text: screen.hasFiles ? "1 файл · 1 ч 21 мин звука" : "Файлы не выбраны"
+                    text: screen.hasFiles ? "1 файл · 1 ч 21 мин звука"
+                                        : I18n.strings["main.noFiles"]
                     color: Theme.text
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontBase
                 }
                 Text {
                     text: screen.hasFiles ? "расчётное время ≈ 19 мин на видеокарте"
-                                          : "настройки уже проставлены — достаточно выбрать файл"
+                                          : I18n.strings["main.noFilesHint"]
                     color: Theme.textMuted
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSmall
@@ -299,9 +309,10 @@ Item {
 
             Item { Layout.fillWidth: true }
 
-            AppButton { text: "Сохранить пресет" }
+            AppButton { text: I18n.strings["action.savePreset"] }
             AppButton {
-                text: screen.hasFiles ? "Запустить" : "Сначала выберите файл"
+                text: screen.hasFiles ? I18n.strings["action.start"]
+                                      : I18n.strings["action.startDisabled"]
                 primary: true
                 enabled: screen.hasFiles
             }

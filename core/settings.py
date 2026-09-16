@@ -28,8 +28,14 @@ class Settings:
     #: Где искать ffmpeg, если его нет ни в папке данных, ни в PATH.
     ffmpeg_dir: str = ""
 
+    #: Куда по умолчанию класть готовые документы. Пусто — рядом с исходником.
+    output_dir: str = ""
+
     #: Язык интерфейса. Ядром не используется, хранится здесь ради одного места.
     ui_language: str = "ru"
+
+    #: Тема: system — как в системе, иначе light или dark.
+    theme: str = "system"
 
     @classmethod
     def path(cls) -> Path:
@@ -55,6 +61,10 @@ class Settings:
 
     def resolve_models_dir(self) -> Path:
         return Path(self.models_dir).expanduser() if self.models_dir else platform.paths().models
+
+    def resolve_output_dir(self) -> Path | None:
+        """None означает «рядом с исходным файлом»."""
+        return Path(self.output_dir).expanduser() if self.output_dir else None
 
     def extra_tool_dirs(self) -> list[Path]:
         dirs = [platform.paths().bin]
