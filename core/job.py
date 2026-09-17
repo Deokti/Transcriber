@@ -47,3 +47,12 @@ class Job:
     def output(self, suffix: str) -> Path:
         """Путь результата рядом с исходником или в заданной папке."""
         return self.output_dir / f"{self.stem}{suffix}"
+
+    def beside(self, suffix: str) -> Path:
+        """То же, но с оглядкой на исходник.
+
+        Если исходник сам звуковой и лежит там, куда мы собрались писать,
+        имя совпадёт — и результат затрёт оригинал. Тогда добавляем пометку.
+        """
+        target = self.output(suffix)
+        return self.output("-audio" + suffix) if target == self.source else target

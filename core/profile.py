@@ -13,9 +13,18 @@ from typing import Any
 
 from core import platform
 
-#: Что нужно получить на выходе.
-TARGET_TEXT = "text"
-TARGET_AUDIO = "audio"
+#: Что нужно получить на выходе (FR-8, FR-37).
+TARGET_TEXT = "text"        # документ
+TARGET_AUDIO = "audio"      # только звуковой файл, распознавания не будет
+TARGET_BOTH = "both"        # и документ, и звуковой файл
+
+#: Формат звукового файла. Первый — ровно то, что нужно движку
+#: распознавания: если файл несут в другую программу, это самый дешёвый
+#: вариант. Остальные — для людей и для монтажа.
+AUDIO_WAV16 = "wav16"       # WAV 16 кГц моно
+AUDIO_WAV48 = "wav48"       # WAV 48 кГц стерео
+AUDIO_MP3 = "mp3"
+AUDIO_M4A = "m4a"
 
 #: Как оформлять текст в документе.
 LAYOUT_TIMECODES = "timecodes"
@@ -45,6 +54,7 @@ class Profile:
 
     # что делаем
     target: str = TARGET_TEXT
+    audio_format: str = AUDIO_WAV16   # каким получится звуковой файл
 
     # подготовка звука
     loudnorm: bool = True

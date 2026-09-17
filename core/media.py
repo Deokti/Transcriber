@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Callable
 
 from core.events import Cancelled, Code, CoreError
+from core.profile import AUDIO_M4A, AUDIO_MP3, AUDIO_WAV16, AUDIO_WAV48
 
 VIDEO_EXT = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".ts", ".mpg", ".mpeg", ".wmv", ".flv", ".m4v"}
 AUDIO_EXT = {".m4a", ".mp3", ".wav", ".ogg", ".opus", ".flac", ".aac", ".wma", ".m4b", ".amr", ".aiff"}
@@ -45,6 +46,31 @@ class MediaInfo:
     has_video: bool
     container: str
     audio: list[AudioTrack] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class Encoding:
+    """Во что ffmpeg превращает звук."""
+
+    rate: int
+    channels: int
+    args: list[str]
+    suffix: str
+
+
+#: Форматы звукового файла из требования FR-8.
+#: 16 кГц моно стоит первым не случайно: именно в него движок распознавания
+#: конвертирует всё внутри себя, так что это самый дешёвый и точный вариант.
+ENCODINGS = {
+    AUDIO_WAV16: Encoding(16000, 1, ["-c:a", "pcm_s16le"], ".wav"),
+    AUDIO_WAV48: Encoding(48000, 2, ["-c:a", "pcm_s16le"], ".wav"),
+    AUDIO_MP3: Encoding(44100, 2, ["-c:a", "libmp3lame", "-b:a", "192k"], ".mp3"),
+    AUDIO_M4A: Encoding(44100, 2, ["-c:a", "aac", "-b:a", "192k"], ".m4a"),
+}
+
+
+def encoding(name: str) -> Encoding:
+    return ENCODINGS.get(name, ENCODINGS[AUDIO_WAV16])
 
 
 @dataclass(frozen=True)
@@ -172,18 +198,21 @@ def extract_audio(
     denoise: str = "off",
     trim_silence: bool = False,
     duration: float = 0.0,
+    audio_format: str = AUDIO_WAV16,
     on_progress: Callable[[float, float], None] | None = None,
     should_cancel: Callable[[], bool] | None = None,
 ) -> Path:
-    """Вытаскивает звук в WAV 16 кГц моно.
+    """Вытаскивает звук в заданном формате.
 
-    Именно в этот формат Whisper конвертирует внутри себя в любом случае,
-    так что лишней потери качества здесь нет.
+    По умолчанию это WAV 16 кГц моно — ровно то, во что Whisper конвертирует
+    внутри себя, так что лишней потери качества на пути к тексту нет. Другие
+    форматы нужны, когда звуковой файл и есть результат (FR-8).
     """
     dst.parent.mkdir(parents=True, exist_ok=True)
+    how = encoding(audio_format)
     cmd = [str(ffmpeg), "-hide_banner", "-nostdin", "-y", "-loglevel", "error",
            "-i", str(src), "-map", f"0:a:{track}?", "-vn", "-sn", "-dn",
-           "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le"]
+           "-ac", str(how.channels), "-ar", str(how.rate), *how.args]
     filters = build_filters(loudnorm, denoise, trim_silence)
     if filters:
         cmd += ["-af", filters]

@@ -14,6 +14,7 @@ STAGE_NAMES = {
     Stage.DOWNLOAD: "скачивание модели",
     Stage.PROBE: "разбор файла",
     Stage.PREPARE: "подготовка звука",
+    Stage.AUDIO: "сохранение звука",
     Stage.TRANSCRIBE: "распознавание",
     Stage.CHECK: "проверка качества",
     Stage.EXPORT: "выдача документов",
@@ -24,6 +25,13 @@ VERDICTS = {
     Code.QUALITY_CLEAN: "ЧИСТО",
     Code.QUALITY_MINOR: "мелкие повторы",
     Code.QUALITY_STUCK: "ЕСТЬ ЗАЛИПАНИЯ",
+}
+
+FORMATS = {
+    "wav16": "WAV 16 кГц моно",
+    "wav48": "WAV 48 кГц стерео",
+    "mp3": "MP3",
+    "m4a": "M4A",
 }
 
 DEVICE_REASONS = {
@@ -72,10 +80,15 @@ def render(e: Event) -> str | None:
     if e.kind is Kind.PROGRESS:
         done = 100 * d.get("done", 0)
         position = hms(d.get("position", 0))
-        if "eta" in d:
+        # Различаем по сегментам, а не по оценке времени: её теперь считает
+        # и подготовка звука, а сегменты бывают только у распознавания.
+        if "segments" in d:
             return (f"    {done:5.1f}%  аудио {position}  прошло {d['elapsed']/60:.1f} мин  "
                     f"осталось ~{d['eta']/60:.0f} мин  сегментов {d['segments']}")
-        return f"    {done:5.1f}%  извлечено {position} из {hms(d.get('total', 0))}"
+        line = f"    {done:5.1f}%  извлечено {position} из {hms(d.get('total', 0))}"
+        if d.get("eta"):
+            line += f"  осталось ~{d['eta']/60:.0f} мин"
+        return line
 
     if e.kind is Kind.JOB_DONE:
         return "готово"
@@ -107,13 +120,17 @@ def _by_code(e: Event, d: dict, stage: str) -> str | None:
 
     if code == Code.FILTERS_APPLIED:
         what = []
+        into = FORMATS.get(d.get("format"), d.get("format", ""))
         if d.get("denoise"):
             what.append("шумоподавление")
         if d.get("trim_silence"):
             what.append("обрезка тишины по краям")
         if d.get("loudnorm"):
             what.append("выравнивание громкости")
-        return f"{prefix}ffmpeg -> WAV 16 кГц моно ({', '.join(what) or 'без обработки'})"
+        return f"{prefix}ffmpeg -> {into} ({', '.join(what) or 'без обработки'})"
+
+    if code == Code.AUDIO_SAVED:
+        return f"{prefix}звук сохранён: {d['path']} ({mb(d['size'])}, {d['format']})"
 
     if code == Code.AUDIO_READY:
         return f"{prefix}звук готов за {d['seconds']:.0f} с ({mb(d['size'])})"

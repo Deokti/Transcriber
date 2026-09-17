@@ -13,18 +13,28 @@ from core.context import RunContext
 from core.events import Cancelled, Code, CoreError, Event, Kind, Stage
 from core.formats import segments as segments_file
 from core.job import Job, JobState
-from core.profile import TARGET_AUDIO
-from core.stages import check, cleanup, export, prepare, probe, transcribe
+from core.profile import TARGET_AUDIO, TARGET_BOTH, TARGET_TEXT
+from core.stages import audio, check, cleanup, export, prepare, probe, transcribe
 
 
 def plan(profile) -> list[Stage]:
-    """Список стадий для этой задачи — им же рисуется ход работы в окне."""
-    if profile.target == TARGET_AUDIO:
-        return [Stage.PROBE, Stage.PREPARE, Stage.CLEANUP]
+    """Список стадий для этой задачи — им же рисуется ход работы в окне.
+
+    Набор собирается из заказа, а не из развилок внутри кода: нужен звук —
+    добавляется стадия сохранения, нужен текст — распознавание с проверкой
+    и выдачей. Уборка идёт только там, где остаётся что убирать: звуковой
+    файл — результат, а не промежуточный.
+    """
+    wants_audio = profile.target in (TARGET_AUDIO, TARGET_BOTH)
+    wants_text = profile.target in (TARGET_TEXT, TARGET_BOTH)
+
     stages = [Stage.PROBE]
     if not profile.skip_prepare:
         stages.append(Stage.PREPARE)
-    stages += [Stage.TRANSCRIBE, Stage.CHECK, Stage.EXPORT, Stage.CLEANUP]
+    if wants_audio:
+        stages.append(Stage.AUDIO)
+    if wants_text:
+        stages += [Stage.TRANSCRIBE, Stage.CHECK, Stage.EXPORT, Stage.CLEANUP]
     return stages
 
 
@@ -56,7 +66,9 @@ def run_job(job: Job, ctx: RunContext) -> Job:
             return job
 
         total = len(stages)
-        audio = job.source
+        # Имя нарочно не «audio»: так зовётся стадия сохранения звука, и
+        # переменная её перекрывала — конвейер падал на ровном месте.
+        prepared = job.source
 
         for number, stage in enumerate(stages, 1):
             if stage is Stage.PROBE:
@@ -64,10 +76,13 @@ def run_job(job: Job, ctx: RunContext) -> Job:
                     probe.run(job, ctx)
             elif stage is Stage.PREPARE:
                 with _stage(ctx, stage, number, total):
-                    audio = prepare.run(job, ctx)
+                    prepared = prepare.run(job, ctx)
+            elif stage is Stage.AUDIO:
+                with _stage(ctx, stage, number, total):
+                    audio.run(job, ctx)
             elif stage is Stage.TRANSCRIBE:
                 with _stage(ctx, stage, number, total):
-                    transcribe.run(job, ctx, audio)
+                    transcribe.run(job, ctx, prepared)
             elif stage is Stage.CHECK:
                 with _stage(ctx, stage, number, total):
                     check.run(job, ctx)

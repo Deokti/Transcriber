@@ -32,6 +32,7 @@ class Stage(str, Enum):
     DOWNLOAD = "download"      # нужной модели нет на диске — качаем
     PROBE = "probe"
     PREPARE = "prepare"
+    AUDIO = "audio"            # сохранить звуковой файл, если его просили
     TRANSCRIBE = "transcribe"
     CHECK = "check"
     EXPORT = "export"
@@ -65,6 +66,7 @@ class Code:
     # подготовка звука
     FILTERS_APPLIED = "FILTERS_APPLIED"
     AUDIO_READY = "AUDIO_READY"
+    AUDIO_SAVED = "AUDIO_SAVED"        # звуковой файл лёг туда, где его ждут
 
     # модель и распознавание
     MODEL_MISSING = "MODEL_MISSING"

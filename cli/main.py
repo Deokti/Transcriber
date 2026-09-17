@@ -25,7 +25,8 @@ from core.job import Job, JobState
 from core.media import MEDIA_EXT, ensure_tools
 from core.runner import JobRunner
 from core.settings import Settings
-from core.profile import (LAYOUT_PLAIN, LAYOUT_TIMECODES, TARGET_AUDIO, TARGET_TEXT,
+from core.profile import (AUDIO_M4A, AUDIO_MP3, AUDIO_WAV16, AUDIO_WAV48,
+                          LAYOUT_PLAIN, LAYOUT_TIMECODES, TARGET_AUDIO, TARGET_BOTH, TARGET_TEXT,
                           TEMP_DELETE, TEMP_KEEP, TEMP_MOVE, Profile)
 from core.timecode import hms
 
@@ -77,6 +78,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--track", type=int, help="номер аудиодорожки")
     p.add_argument("--raw", action="store_true", help="без ffmpeg: отдать исходник как есть")
     p.add_argument("--audio-only", action="store_true", help="только вытащить звук, не распознавать")
+    p.add_argument("--with-audio", action="store_true",
+                   help="сохранить звуковой файл вместе с документом")
+    p.add_argument("--audio-format", choices=[AUDIO_WAV16, AUDIO_WAV48, AUDIO_MP3, AUDIO_M4A],
+                   help="формат звукового файла (по умолчанию wav16 — 16 кГц моно)")
     p.add_argument("--layout", choices=[LAYOUT_TIMECODES, LAYOUT_PLAIN])
     p.add_argument("--keep-audio", action="store_true")
     p.add_argument("--delete-audio", action="store_true")
@@ -130,6 +135,10 @@ def build_profile(args: argparse.Namespace) -> Profile:
         profile.skip_prepare = True
     if args.audio_only:
         profile.target = TARGET_AUDIO
+    elif args.with_audio:
+        profile.target = TARGET_BOTH
+    if args.audio_format:
+        profile.audio_format = args.audio_format
     if args.layout:
         profile.layout = args.layout
     if args.outdir:

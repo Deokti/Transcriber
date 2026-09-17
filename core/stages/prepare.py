@@ -8,7 +8,8 @@ from core.context import RunContext
 from core.events import Code, Kind, Stage
 from core.job import Job
 from core.media import build_filters, extract_audio
-from core.profile import TARGET_AUDIO
+from core.media import encoding
+from core.profile import AUDIO_WAV16, TARGET_AUDIO
 
 
 def run(job: Job, ctx: RunContext) -> Path:
@@ -19,11 +20,17 @@ def run(job: Job, ctx: RunContext) -> Path:
     duration = job.media.duration if job.media else 0.0
     filters = build_filters(job.profile.loudnorm, job.profile.denoise,
                             job.profile.trim_silence)
+
+    # Распознавания не будет — значит это и есть заказанный файл, и делать
+    # его сразу нужно в заказанном формате, а не пережимать потом.
+    audio_format = (job.profile.audio_format if job.profile.target == TARGET_AUDIO
+                    else AUDIO_WAV16)
+    target = _destination(job, ctx)
+
     ctx.event(Kind.INFO, Stage.PREPARE, Code.FILTERS_APPLIED,
               filters=filters, loudnorm=job.profile.loudnorm, denoise=job.profile.denoise,
-              trim_silence=job.profile.trim_silence, track=job.profile.track)
-
-    target = _destination(job, ctx)
+              trim_silence=job.profile.trim_silence, track=job.profile.track,
+              format=audio_format)
     step = max(job.profile.progress_step_min, 1.0) * 60
     last = {"at": -step}
     started = time.monotonic()
@@ -32,8 +39,11 @@ def run(job: Job, ctx: RunContext) -> Path:
         if current - last["at"] < step:
             return
         last["at"] = current
-        ctx.event(Kind.PROGRESS, Stage.PREPARE,
-                  done=current / total if total else 0.0, position=current, total=total)
+        done = current / total if total else 0.0
+        elapsed = time.monotonic() - started
+        eta = elapsed / done * (1 - done) if done > 0.02 else 0.0
+        ctx.event(Kind.PROGRESS, Stage.PREPARE, done=done, position=current,
+                  total=total, eta=round(eta, 1))
 
     extract_audio(
         ctx.tools.ffmpeg, job.source, target,
@@ -42,6 +52,7 @@ def run(job: Job, ctx: RunContext) -> Path:
         denoise=job.profile.denoise,
         trim_silence=job.profile.trim_silence,
         duration=duration,
+        audio_format=audio_format,
         on_progress=on_progress,
         should_cancel=ctx.should_cancel,
     )
@@ -67,8 +78,4 @@ def _destination(job: Job, ctx: RunContext) -> Path:
         return ctx.paths.temp / f"{job.stem}_16k.wav"
 
     job.output_dir.mkdir(parents=True, exist_ok=True)
-    target = job.output(".wav")
-    if target == job.source:
-        # Исходник — уже wav и лежит там же, куда мы собрались писать.
-        target = job.output("-16k.wav")
-    return target
+    return job.beside(encoding(job.profile.audio_format).suffix)
