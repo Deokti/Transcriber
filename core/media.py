@@ -9,8 +9,12 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import tempfile
+import threading
+from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
+from queue import Empty, Full, Queue
 from typing import Callable
 
 from core import platform
@@ -20,6 +24,8 @@ from core.profile import AUDIO_M4A, AUDIO_MP3, AUDIO_WAV16, AUDIO_WAV48
 VIDEO_EXT = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".ts", ".mpg", ".mpeg", ".wmv", ".flv", ".m4v"}
 AUDIO_EXT = {".m4a", ".mp3", ".wav", ".ogg", ".opus", ".flac", ".aac", ".wma", ".m4b", ".amr", ".aiff"}
 MEDIA_EXT = VIDEO_EXT | AUDIO_EXT
+
+PROBE_TIMEOUT = 30
 
 #: Где искать ffmpeg, если его нет ни в папке данных, ни в PATH.
 GUESS_DIRS = [
@@ -134,8 +140,12 @@ def probe(ffprobe: Path, path: Path) -> MediaInfo:
     """Длительность, наличие картинки и список аудиодорожек."""
     cmd = [str(ffprobe), "-v", "error", "-print_format", "json",
            "-show_format", "-show_streams", str(path)]
-    r = subprocess.run(cmd, capture_output=True, text=True,
-                       encoding="utf-8", errors="replace", **platform.quiet_child())
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=PROBE_TIMEOUT,
+                           encoding="utf-8", errors="replace", **platform.quiet_child())
+    except subprocess.TimeoutExpired as e:
+        raise CoreError(Code.FFPROBE_FAILED, path=str(path), reason="timeout",
+                        seconds=PROBE_TIMEOUT) from e
     if r.returncode != 0:
         raise CoreError(Code.FFPROBE_FAILED, path=str(path), stderr=r.stderr.strip()[:300])
 
@@ -214,6 +224,10 @@ def extract_audio(
     внутри себя, так что лишней потери качества на пути к тексту нет. Другие
     форматы нужны, когда звуковой файл и есть результат (FR-8).
     """
+    if should_cancel is not None and should_cancel():
+        raise Cancelled()
+    if src.resolve() == dst.resolve():
+        raise CoreError(Code.FFMPEG_FAILED, reason="source_is_destination", path=str(src))
     dst.parent.mkdir(parents=True, exist_ok=True)
     how = encoding(audio_format)
     cmd = [str(ffmpeg), "-hide_banner", "-nostdin", "-y", "-loglevel", "error",
@@ -222,38 +236,88 @@ def extract_audio(
     filters = build_filters(loudnorm, denoise, trim_silence)
     if filters:
         cmd += ["-af", filters]
-    cmd += ["-progress", "pipe:1", "-nostats", str(dst)]
+    # Готовый результат заменяем только после успеха. Ошибка или отмена
+    # не должны оставлять обрывок вместо существующего звукового файла.
+    with tempfile.NamedTemporaryFile(dir=dst.parent, prefix=".transcriber-",
+                                     suffix=dst.suffix, delete=False) as file:
+        pending = Path(file.name)
+    cmd += ["-progress", "pipe:1", "-nostats", str(pending)]
+
+    try:
+        code, err = _run_ffmpeg(cmd, duration, on_progress, should_cancel)
+        if code != 0 or not pending.exists() or pending.stat().st_size < 1024:
+            raise CoreError(Code.FFMPEG_FAILED, returncode=code, stderr=err.strip()[:400])
+        pending.replace(dst)
+    finally:
+        pending.unlink(missing_ok=True)
+    return dst
+
+
+def _run_ffmpeg(cmd: list[str], duration: float,
+                on_progress: Callable[[float, float], None] | None,
+                should_cancel: Callable[[], bool] | None) -> tuple[int, str]:
+    """Читает обе трубы независимо от отмены, с ограниченной памятью."""
+    progress: Queue[float] = Queue(maxsize=1)
+    errors: deque[str] = deque(maxlen=8)
 
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             text=True, encoding="utf-8", errors="replace", bufsize=1,
                             **platform.quiet_child())
-    cancelled = False
-    try:
-        for line in proc.stdout:
-            if should_cancel is not None and should_cancel():
-                cancelled = True
-                proc.terminate()
-                break
-            if line.startswith("out_time_us=") and on_progress and duration > 0:
-                try:
-                    current = int(line.split("=", 1)[1]) / 1_000_000
-                except ValueError:
-                    continue
-                on_progress(current, duration)
-    finally:
-        if proc.stdout:
-            proc.stdout.close()
-        err = proc.stderr.read() if proc.stderr else ""
-        if proc.stderr:
-            proc.stderr.close()
-        code = proc.wait()
 
-    if cancelled:
-        dst.unlink(missing_ok=True)
+    def read_progress() -> None:
+        for line in proc.stdout:
+            if line.startswith("out_time_us="):
+                try:
+                    progress.put_nowait(int(line.split("=", 1)[1]) / 1_000_000)
+                except (ValueError, Full):
+                    pass
+
+    def read_errors() -> None:
+        for chunk in iter(lambda: proc.stderr.read(1024), ""):
+            errors.append(chunk)
+
+    def report() -> None:
+        try:
+            current = progress.get_nowait()
+        except Empty:
+            return
+        if on_progress and duration > 0:
+            on_progress(current, duration)
+
+    readers = []
+    try:
+        for read in (read_progress, read_errors):
+            thread = threading.Thread(target=read, name="ffmpeg-reader", daemon=True)
+            thread.start()
+            readers.append(thread)
+        while True:
+            if should_cancel is not None and should_cancel():
+                raise Cancelled()
+            report()
+            try:
+                code = proc.wait(timeout=0.1)
+                break
+            except subprocess.TimeoutExpired:
+                pass
+    finally:
+        try:
+            if proc.poll() is None:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait()
+        finally:
+            for thread in readers:
+                thread.join()
+            proc.stdout.close()
+            proc.stderr.close()
+
+    if should_cancel is not None and should_cancel():
         raise Cancelled()
-    if code != 0 or not dst.exists() or dst.stat().st_size < 1024:
-        raise CoreError(Code.FFMPEG_FAILED, returncode=code, stderr=err.strip()[:400])
-    return dst
+    report()
+    return code, "".join(errors)
 
 
 def describe_tracks(tracks: list[AudioTrack]) -> list[dict]:
