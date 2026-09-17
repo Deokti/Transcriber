@@ -26,9 +26,13 @@ PNG_SIZES = (16, 24, 32, 48, 64, 128, 256, 512)
 #: Какой файл брать для мелких размеров: у знака есть упрощённый вариант.
 SMALL_LIMIT = 24
 
-#: Типы кусков в ICNS: размер в точках -> четырёхбуквенный код.
-ICNS_TYPES = {16: b"icp4", 32: b"icp5", 64: b"icp6",
-              128: b"ic07", 256: b"ic08", 512: b"ic09"}
+#: Куски ICNS: код и сторона картинки. Набор такой же, какой складывает
+#: маковский iconutil. Ранние коды icp4/icp5/icp6 система понимает через раз,
+#: поэтому берём пары «обычный и удвоенный»: ic11 — это 16 точек на экране
+#: retina, ic12 — 32, и дальше по той же схеме.
+ICNS_TYPES = ((b"ic11", 32), (b"ic12", 64), (b"ic07", 128),
+              (b"ic13", 256), (b"ic08", 256), (b"ic14", 512),
+              (b"ic09", 512), (b"ic10", 1024))
 
 
 def render(svg: Path, size: int) -> bytes:
@@ -70,9 +74,7 @@ def write_ico(pngs: dict[int, bytes], target: Path) -> Path:
 def write_icns(pngs: dict[int, bytes], target: Path) -> Path:
     """Пакует png в .icns: заголовок, затем куски вида код+длина+данные."""
     chunks = b""
-    for size, code in ICNS_TYPES.items():
-        if size not in pngs:
-            continue
+    for code, size in ICNS_TYPES:
         blob = pngs[size]
         chunks += code + struct.pack(">I", len(blob) + 8) + blob
     target.write_bytes(b"icns" + struct.pack(">I", len(chunks) + 8) + chunks)
@@ -93,8 +95,9 @@ def main() -> int:
 
     app = QGuiApplication(sys.argv)   # растеризация требует приложения
 
+    sizes = set(ICO_SIZES) | set(PNG_SIZES) | {side for _, side in ICNS_TYPES}
     pngs = {size: render(small_svg if size <= SMALL_LIMIT else main_svg, size)
-            for size in sorted(set(ICO_SIZES) | set(PNG_SIZES) | set(ICNS_TYPES))}
+            for size in sorted(sizes)}
 
     for size in PNG_SIZES:
         (OUT / f"icon-{size}.png").write_bytes(pngs[size])
