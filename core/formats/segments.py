@@ -91,32 +91,43 @@ def mark_partial(path: Path) -> None:
         pending.unlink(missing_ok=True)
 
 
-def read(path: Path) -> tuple[dict[str, Any], list[Segment]]:
-    """Читает файл целиком. Битую последнюю строку после обрыва пропускает."""
-    meta: dict[str, Any] = {}
-    segments: list[Segment] = []
-    with path.open(encoding="utf-8") as f:
-        for line in f:
+def _rows(path: Path) -> Iterator[dict]:
+    """Строки файла одна за другой. Битую последнюю после обрыва пропускает."""
+    with path.open(encoding="utf-8") as file:
+        for line in file:
             line = line.strip()
             if not line:
                 continue
             try:
-                obj = json.loads(line)
+                yield json.loads(line)
             except json.JSONDecodeError:
                 continue  # оборванный хвост — не повод терять остальное
-            if "meta" in obj:
-                meta = obj["meta"]
-                continue
-            segments.append(Segment(
-                start=float(obj.get("start", 0.0)),
-                end=float(obj.get("end", 0.0)),
-                text=obj.get("text", ""),
-                no_speech_prob=float(obj.get("no_speech_prob", 0.0)),
-                avg_logprob=float(obj.get("avg_logprob", 0.0)),
-            ))
+
+
+def _segment(obj: dict) -> Segment:
+    return Segment(
+        start=float(obj.get("start", 0.0)),
+        end=float(obj.get("end", 0.0)),
+        text=obj.get("text", ""),
+        no_speech_prob=float(obj.get("no_speech_prob", 0.0)),
+        avg_logprob=float(obj.get("avg_logprob", 0.0)),
+    )
+
+
+def read(path: Path) -> tuple[dict[str, Any], list[Segment]]:
+    """Читает файл целиком: заголовок и все сегменты списком."""
+    meta: dict[str, Any] = {}
+    segments: list[Segment] = []
+    for obj in _rows(path):
+        if "meta" in obj:
+            meta = obj["meta"]
+        else:
+            segments.append(_segment(obj))
     return meta, segments
 
 
 def iter_segments(path: Path) -> Iterator[Segment]:
-    _meta, segments = read(path)
-    yield from segments
+    """Сегменты потоком, не держа файл в памяти: у длинной записи их тысячи."""
+    for obj in _rows(path):
+        if "meta" not in obj:
+            yield _segment(obj)
