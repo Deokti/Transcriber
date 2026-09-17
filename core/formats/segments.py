@@ -67,6 +67,30 @@ def meta(path: Path) -> dict[str, Any]:
     return head.get("meta", {}) if isinstance(head, dict) else {}
 
 
+def mark_partial(path: Path) -> None:
+    """Помечает файл как обрывок: работу отменили, это не вся запись.
+
+    Заголовок пишется в самом начале, когда ещё неизвестно, дойдёт ли счёт
+    до конца, — поэтому пометка дописывается задним числом. Строки с
+    сегментами не трогаем, файл подменяется целиком и только после записи.
+    """
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+        head = json.loads(lines[0]) if lines else None
+    except (OSError, ValueError):
+        return
+    if not isinstance(head, dict) or not isinstance(head.get("meta"), dict):
+        return
+    head["meta"]["partial"] = True
+    lines[0] = json.dumps(head, ensure_ascii=False) + "\n"
+    pending = path.with_name(path.name + ".tmp")
+    try:
+        pending.write_text("".join(lines), encoding="utf-8")
+        pending.replace(path)
+    except OSError:
+        pending.unlink(missing_ok=True)
+
+
 def read(path: Path) -> tuple[dict[str, Any], list[Segment]]:
     """Читает файл целиком. Битую последнюю строку после обрыва пропускает."""
     meta: dict[str, Any] = {}

@@ -151,6 +151,10 @@ def _save_partial(job: Job, ctx: RunContext) -> None:
     safe = ctx.without_cancel()   # доделываем до конца, второй отмены не слушаем
     if job.segments:
         job.stats["partial"] = True
+        # Пометка в самом файле сегментов, а не только в событии: следующий
+        # запуск должен понять, что рядом лежит обрывок, а не готовый текст,
+        # — иначе он его пропустит как «уже посчитанное».
+        segments_file.mark_partial(job.output(segments_file.SUFFIX))
         total = job.media.duration if job.media else 0.0
         try:
             check.run(job, safe)
@@ -185,6 +189,10 @@ def _already_done(job: Job, ctx: RunContext) -> bool:
     # текст, и «пропущено» в ответ выглядит издевательством.
     head = segments_file.meta(job.output(segments_file.SUFFIX))
     if head.get("model") and head["model"] != job.profile.model:
+        return False
+    # Обрывок после отмены — не результат, а то, что спасли по пути.
+    # Человек запускает снова именно затем, чтобы досчитать.
+    if head.get("partial"):
         return False
 
     # Готовое — тоже результат: окну нужно, что именно лежит и где.
