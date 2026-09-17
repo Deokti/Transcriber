@@ -4,6 +4,7 @@
   python tools/build.py --cuda       — с поддержкой видеокарты (Windows, Linux)
   python tools/build.py --all        — обе подряд
   python tools/build.py --installer  — плюс установщик, где он бывает
+  python tools/build.py --sums       — только пересчитать суммы в release
 
 Собирать можно только для той системы, на которой запущен скрипт:
 PyInstaller не умеет кросс-сборку. Поэтому маковский .dmg делается на
@@ -57,6 +58,31 @@ EXTRAS = [("LICENSE", "LICENSE.txt"),
 HIDDEN = ["faster_whisper", "ctranslate2", "onnxruntime", "av", "huggingface_hub"]
 
 ICONS = {"windows": "app/icons/build/app.ico", "macos": "app/icons/build/app.icns"}
+
+#: Линуксу нужна запись в меню рабочего стола. Готовый .desktop в архив не
+#: положить: в нём обязателен абсолютный путь до программы, а папку
+#: распаковывают куда угодно. Поэтому кладём скрипт — он пишет запись на месте.
+MENU = """#!/bin/sh
+# Добавляет {name} в меню рабочего стола. Программа остаётся там, где лежит,
+# скрипт только создаёт запись со ссылкой на неё.
+set -e
+here=$(cd "$(dirname "$0")" && pwd)
+apps="${{XDG_DATA_HOME:-$HOME/.local/share}}/applications"
+mkdir -p "$apps"
+chmod +x "$here/{binary}"
+cat > "$apps/transcriber.desktop" <<DESKTOP
+[Desktop Entry]
+Name={name}
+Comment=Видео и аудио в текст
+Exec=$here/{binary}
+Icon=$here/_internal/app/icons/build/icon-256.png
+Terminal=false
+Type=Application
+Categories=AudioVideo;Utility;
+DESKTOP
+echo "готово: $apps/transcriber.desktop"
+echo "убрать: rm $apps/transcriber.desktop"
+"""
 
 
 def run(cmd: list[str]) -> None:
@@ -168,16 +194,9 @@ def pack_tar(folder: Path, base: str) -> Path:
     archive = RELEASE / f"{base}.tar.gz"
     archive.unlink(missing_ok=True)
     print(f"   пакую {archive.name} …")
-    desktop = folder / f"{NAME}.desktop"
-    desktop.write_text(
-        "[Desktop Entry]\n"
-        f"Name={NAME}\n"
-        "Comment=Видео и аудио в текст\n"
-        f"Exec=%k/../{folder.name}\n"
-        "Terminal=false\n"
-        "Type=Application\n"
-        "Categories=AudioVideo;Utility;\n",
-        encoding="utf-8")
+    script = folder / "install.sh"
+    script.write_text(MENU.format(name=NAME, binary=folder.name), encoding="utf-8")
+    script.chmod(0o755)
     with tarfile.open(archive, "w:gz") as tar:
         tar.add(folder, arcname=f"{NAME}-{VERSION}")
     return archive
@@ -247,6 +266,13 @@ def sums() -> Path:
 
 
 def main() -> int:
+    if "--sums" in sys.argv:
+        # Пригодится, когда в release добавили файл с другой машины:
+        # маковский образ собирается на маке и приезжает отдельно.
+        print("=== контрольные суммы ===")
+        print("  ", sums())
+        return 0
+
     if "--all" in sys.argv:
         variants = [False, True]
     elif "--cuda" in sys.argv:
