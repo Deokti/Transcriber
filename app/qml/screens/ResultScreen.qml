@@ -232,6 +232,22 @@ Item {
                             font.pixelSize: Theme.fontSmall
                         }
 
+                        // Что именно сломалось. Без этой строки на карточке
+                        // остаётся один код, и человеку нечего рассказать о том,
+                        // что случилось: текст ошибки знает только ядро.
+                        Text {
+                            Layout.fillWidth: true
+                            visible: text !== ""
+                            text: modelData.state === "failed" && modelData.reason !== undefined
+                                  ? String(modelData.reason) : ""
+                            wrapMode: Text.WrapAnywhere
+                            maximumLineCount: 3
+                            elide: Text.ElideRight
+                            color: Theme.errorFg
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSmall
+                        }
+
                         // Сохранённое после обрыва — не то же самое, что готовое,
                         // и человек должен узнать об этом здесь, а не в журнале.
                         Text {
