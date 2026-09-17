@@ -90,14 +90,14 @@ def analyze(segments: list[Segment]) -> Report | None:
     report = Report(lines=len(segments), end=segments[-1].end)
     report.speech = sum(s.end - s.start for s in segments)
     report.empty = sum(1 for s in segments if len(s.text.strip()) < 2)
+    keys = [normalize(s.text) for s in segments]   # один раз, а не в каждом цикле
 
     # серии подряд идущих одинаковых строк
     runs: list[Run] = []
     i = 0
     while i < len(segments):
         j = i
-        key = normalize(segments[i].text)
-        while j + 1 < len(segments) and normalize(segments[j + 1].text) == key:
+        while j + 1 < len(segments) and keys[j + 1] == keys[i]:
             j += 1
         runs.append(Run(j - i + 1, segments[i].start, segments[j].end, segments[i].text))
         i = j + 1
@@ -110,17 +110,16 @@ def analyze(segments: list[Segment]) -> Report | None:
 
     # повтор строки в окне из нескольких предыдущих — ловит циклы вида ABAB
     window: list[str] = []
-    for s in segments:
-        key = normalize(s.text)
+    for key in keys:
         if key and key in window:
             report.near_repeats += 1
-        window = (window + [key])[-NEAR_WINDOW:]
+        window = [*window, key][-NEAR_WINDOW:]
 
     report.gaps = [(segments[i].end, segments[i + 1].start)
                    for i in range(len(segments) - 1)
                    if segments[i + 1].start - segments[i].end > GAP_SECONDS]
 
-    report.top = Counter(normalize(s.text) for s in segments if s.text.strip()).most_common(5)
+    report.top = Counter(key for key in keys if key).most_common(5)
 
     if report.repeat_seconds > STUCK_SECONDS or report.max_run >= STUCK_RUN:
         report.verdict = Code.QUALITY_STUCK
