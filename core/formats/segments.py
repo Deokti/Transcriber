@@ -49,6 +49,24 @@ class SegmentWriter:
         })
 
 
+def meta(path: Path) -> dict[str, Any]:
+    """Только заголовок: чем и как считали этот текст.
+
+    Читаем первую строку, а не файл целиком: у часовой лекции это мегабайты,
+    а спрашивают обычно одно — какой моделью получен документ.
+    """
+    try:
+        with path.open("r", encoding="utf-8") as file:
+            first = file.readline()
+    except OSError:
+        return {}
+    try:
+        head = json.loads(first or "{}")
+    except ValueError:
+        return {}
+    return head.get("meta", {}) if isinstance(head, dict) else {}
+
+
 def read(path: Path) -> tuple[dict[str, Any], list[Segment]]:
     """Читает файл целиком. Битую последнюю строку после обрыва пропускает."""
     meta: dict[str, Any] = {}

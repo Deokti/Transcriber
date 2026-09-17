@@ -63,6 +63,13 @@ def run_job(job: Job, ctx: RunContext) -> Job:
         if _already_done(job, ctx):
             job.state = JobState.DONE
             job.stats["skipped"] = True
+            # Пропуск — тоже итог, и о нём нужно рассказать тем же событием,
+            # что и об обычном конце работы. Иначе экран результата пуст:
+            # ни файла, ни готового документа — как будто ничего не было.
+            ctx.emit(Event(Kind.JOB_DONE, None, None,
+                           {"name": job.source.name,
+                            "artifacts": {k: str(v) for k, v in job.artifacts.items()},
+                            **job.stats}))
             return job
 
         total = len(stages)
@@ -158,6 +165,17 @@ def _already_done(job: Job, ctx: RunContext) -> bool:
     existing = [f for f in job.profile.formats if job.output(f".{f}").exists()]
     if not existing:
         return False
+
+    # Документ есть, но посчитан другой моделью — значит лежит не то, что
+    # просят сейчас. Модель меняют как раз затем, чтобы получить другой
+    # текст, и «пропущено» в ответ выглядит издевательством.
+    head = segments_file.meta(job.output(segments_file.SUFFIX))
+    if head.get("model") and head["model"] != job.profile.model:
+        return False
+
+    # Готовое — тоже результат: окну нужно, что именно лежит и где.
+    for name in existing:
+        job.artifacts[name] = job.output(f".{name}")
     ctx.event(Kind.WARNING, None, Code.OUTPUT_EXISTS,
               name=job.source.name, formats=existing,
               segments=str(job.output(segments_file.SUFFIX)))
