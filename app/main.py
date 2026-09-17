@@ -17,11 +17,12 @@ from PySide6.QtQuickControls2 import QQuickStyle
 from app.bridge import (DepsBridge, EnvBridge, ProfileBridge, QueueBridge,
                         RunBridge, SettingsBridge, ShellBridge)
 from app.i18n import I18n
+from core import platform
 from core.version import VERSION
 
-HERE = Path(__file__).resolve().parent
-QML_DIR = HERE / "qml"
-ICON_DIR = HERE / "icons"
+APP_DIR = platform.bundle_dir() / "app"
+QML_DIR = APP_DIR / "qml"
+ICON_DIR = APP_DIR / "icons"
 
 
 def _claim_own_identity() -> None:

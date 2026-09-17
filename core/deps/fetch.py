@@ -21,9 +21,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
+from core import platform
 from core.events import Cancelled, Code, CoreError
 
-CATALOG = Path(__file__).with_name("catalog.json")
+CATALOG = platform.bundle_dir() / "core" / "deps" / "catalog.json"
 
 #: Что ищем в архиве. Внутри сборок это лежит на разной глубине, поэтому
 #: берём по имени файла, а не по пути.

@@ -16,7 +16,9 @@ from pathlib import Path
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
-CATALOG_DIR = Path(__file__).resolve().parent / "i18n"
+from core import platform
+
+CATALOG_DIR = platform.bundle_dir() / "app" / "i18n"
 FALLBACK = "ru"
 
 

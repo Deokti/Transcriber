@@ -121,6 +121,11 @@ def prepare_cuda(emit=None) -> tuple[bool, dict]:
     except ImportError:
         pass
     if not roots:
+        # В собранном виде пакета нет, а папка с библиотеками лежит рядом.
+        packed = bundle_dir() / "nvidia"
+        if packed.is_dir():
+            roots.append(str(packed))
+    if not roots:
         import site
 
         for sp in set(site.getsitepackages() + [site.getusersitepackages()]):
@@ -247,6 +252,16 @@ def devices() -> list[Device]:
     if cuda_device_count() < 1:
         return [Device("cuda", False, NO_CUDA_DEVICE), cpu]
     return [Device("cuda", True), cpu]
+
+
+def bundle_dir() -> Path:
+    """Корень файлов, которые лежат рядом с кодом: qml, переводы, каталоги.
+
+    Из исходников это корень репозитория. В собранном виде PyInstaller
+    распаковывает их к себе и говорит адрес в sys._MEIPASS.
+    """
+    packed = getattr(sys, "_MEIPASS", None)
+    return Path(packed) if packed else Path(__file__).resolve().parent.parent
 
 
 def target() -> str:
