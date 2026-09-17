@@ -170,5 +170,19 @@
   "main.modelWillDownload": "Model %1 has not been downloaded yet — %2. I will fetch it and start right away.",
   "stage.download": "Downloading the model",
   "run.downloaded": "%1 of %2",
-  "notice.DOWNLOAD_FAILED": "The download broke off: %1"
+  "notice.DOWNLOAD_FAILED": "The download broke off: %1",
+  "out.target": "What you need",
+  "out.target.text": "Text",
+  "out.target.both": "Text and an audio file",
+  "out.target.audio": "Audio file only",
+  "out.audioFormat": "Audio format",
+  "audio.wav16": "WAV 16 kHz mono",
+  "audio.wav48": "WAV 48 kHz stereo",
+  "audio.mp3": "MP3",
+  "audio.m4a": "M4A",
+  "asr.notNeeded": "there will be no recognition — audio only",
+  "ready.modelNotNeeded": "no model needed — there will be no recognition",
+  "advanced.noTemp": "no intermediate files are left",
+  "advanced.asrOnly": "recognition settings do not apply in this mode",
+  "ready.audioOnly": "audio is extracted without recognition"
 }

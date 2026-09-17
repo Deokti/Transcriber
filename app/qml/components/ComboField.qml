@@ -7,6 +7,11 @@ import Transcriber
 ColumnLayout {
     id: root
 
+    // Раскладка внутри раскладки тянется по высоте по умолчанию,
+    // и поле растягивалось бы на всю колонку, разрывая расстояния
+    // между подписями. Поле — не резина.
+    Layout.fillHeight: false
+
     property alias label: caption.text
     property alias model: combo.model
     property alias currentIndex: combo.currentIndex

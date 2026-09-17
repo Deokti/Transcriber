@@ -19,7 +19,12 @@ Item {
     readonly property bool hasFiles: Queue.count > 0
     // Выбранной модели нет на диске: работа начнётся со скачивания, и
     // кнопка обязана сказать об этом заранее — так в макете.
-    readonly property bool needsDownload: Env.downloadedModels.indexOf(Task.model) < 0
+    // Что человек заказал. Распознавания может и не быть — тогда модель,
+    // язык и устройство ни при чём, и это должно быть видно: недоступное
+    // выключено и объяснено, а не спрятано (правило 3 брифа).
+    readonly property bool audioOnly: Task.target === "audio"
+    readonly property bool needsDownload: !screen.audioOnly
+                                          && Env.downloadedModels.indexOf(Task.model) < 0
     readonly property var chosenModel: Env.models.filter(function (m) {
         return m.id === Task.model
     })[0]
@@ -233,14 +238,19 @@ Item {
                                 {
                                     // Список, а не вопрос: привязка следит за
                                     // свойствами, а вызов пересчитан не будет.
-                                    ok: Env.downloadedModels.indexOf(Task.model) >= 0,
-                                    text: Env.downloadedModels.indexOf(Task.model) >= 0
+                                    ok: screen.audioOnly
+                                        || Env.downloadedModels.indexOf(Task.model) >= 0,
+                                    text: screen.audioOnly
+                                        ? I18n.strings["ready.modelNotNeeded"]
+                                        : Env.downloadedModels.indexOf(Task.model) >= 0
                                         ? I18n.strings["ready.model"].arg(Task.model)
                                         : I18n.strings["ready.modelMissing"].arg(Task.model)
                                 },
                                 {
-                                    ok: Env.gpuAvailable && Task.device === "cuda",
-                                    text: Env.gpuAvailable && Task.device === "cuda"
+                                    ok: screen.audioOnly
+                                        || (Env.gpuAvailable && Task.device === "cuda"),
+                                    text: screen.audioOnly ? I18n.strings["ready.audioOnly"]
+                                        : Env.gpuAvailable && Task.device === "cuda"
                                         ? Env.gpuName
                                         : I18n.strings["ready.cpu"]
                                 },
@@ -286,14 +296,22 @@ Item {
 
             // --- три группы настроек на одной линии ----------------------
             RowLayout {
+                id: settings
                 Layout.fillWidth: true
                 spacing: Theme.gapPanels
+
+                // Высота у всех трёх одна, по самой высокой. Иначе короткая
+                // колонка обрывается на полпути, и белый фон панели кончается
+                // там, где соседям ещё есть что показать.
+                readonly property int rowHeight:
+                    Math.max(soundColumn.implicitHeight,
+                             asrColumn.implicitHeight,
+                             outColumn.implicitHeight) + Theme.padPanel * 2
 
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredWidth: 1
-                    Layout.alignment: Qt.AlignTop
-                    Layout.preferredHeight: soundColumn.implicitHeight + Theme.padPanel * 2
+                    Layout.preferredHeight: settings.rowHeight
 
                     ColumnLayout {
                         id: soundColumn
@@ -329,8 +347,7 @@ Item {
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredWidth: 1
-                    Layout.alignment: Qt.AlignTop
-                    Layout.preferredHeight: asrColumn.implicitHeight + Theme.padPanel * 2
+                    Layout.preferredHeight: settings.rowHeight
 
                     ColumnLayout {
                         id: asrColumn
@@ -338,9 +355,14 @@ Item {
                         anchors.margins: Theme.padPanel
                         spacing: 10
 
-                        SectionTitle { text: I18n.strings["asr.title"] }
+                        SectionTitle {
+                            text: I18n.strings["asr.title"]
+                            color: screen.audioOnly ? Theme.textDisabled : Theme.text
+                        }
                         ComboField {
                             Layout.fillWidth: true
+                            enabled_: !screen.audioOnly
+                            hint: screen.audioOnly ? I18n.strings["asr.notNeeded"] : ""
                             label: I18n.strings["asr.language"]
                             model: Env.languages.map(function (c) { return Fmt.languageName(c) })
                             values: Env.languages
@@ -349,6 +371,7 @@ Item {
                         }
                         ComboField {
                             Layout.fillWidth: true
+                            enabled_: !screen.audioOnly
                             label: I18n.strings["asr.model"]
                             // Модель, не знающая выбранного языка, остаётся
                             // в списке, но выбрать её нельзя (требование FR-35)
@@ -364,24 +387,26 @@ Item {
                         }
                         ComboField {
                             Layout.fillWidth: true
+                            enabled_: !screen.audioOnly
                             label: I18n.strings["asr.device"]
                             model: Env.devices.map(function (d) {
                                 return { text: Fmt.deviceText(d), disabled: !d.available }
                             })
                             values: Env.devices.map(function (d) { return d.id })
                             value: Task.device
-                            hint: Env.gpuAvailable ? ""
+                            hint: screen.audioOnly || Env.gpuAvailable ? ""
                                 : Fmt.tr("device.reason." + Env.gpuReason, "")
                             onChosen: function (id) { Task.setDevice(id) }
                         }
+
+                        Item { Layout.fillHeight: true }
                     }
                 }
 
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredWidth: 1
-                    Layout.alignment: Qt.AlignTop
-                    Layout.preferredHeight: outColumn.implicitHeight + Theme.padPanel * 2
+                    Layout.preferredHeight: settings.rowHeight
 
                     ColumnLayout {
                         id: outColumn
@@ -390,8 +415,23 @@ Item {
                         spacing: 10
 
                         SectionTitle { text: I18n.strings["out.title"] }
+
+                        // Первое поле группы — сам заказ (решение D-13):
+                        // это вопрос «что я получу», а не деталь оформления.
                         ComboField {
                             Layout.fillWidth: true
+                            label: I18n.strings["out.target"]
+                            model: ["text", "both", "audio"].map(function (t) {
+                                return I18n.strings["out.target." + t]
+                            })
+                            values: ["text", "both", "audio"]
+                            value: Task.target
+                            onChosen: function (code) { Task.setTarget(code) }
+                        }
+
+                        ComboField {
+                            Layout.fillWidth: true
+                            visible: Task.needsText
                             label: I18n.strings["out.format"]
                             // Показываем только то, что ядро умеет собрать
                             model: Env.formats.map(function (f) {
@@ -403,12 +443,27 @@ Item {
                         }
                         ComboField {
                             Layout.fillWidth: true
+                            visible: Task.needsText
                             label: I18n.strings["out.layout"]
                             model: [I18n.strings["out.layout.timecodes"],
                                     I18n.strings["out.layout.plain"]]
                             values: ["timecodes", "plain"]
                             value: Task.layout
                             onChosen: function (code) { Task.setLayout(code) }
+                        }
+
+                        // Формат звука появляется только тогда, когда звук
+                        // и правда заказан (FR-8).
+                        ComboField {
+                            Layout.fillWidth: true
+                            visible: Task.needsAudio
+                            label: I18n.strings["out.audioFormat"]
+                            model: Env.audioFormats.map(function (f) {
+                                return Fmt.tr("audio." + f, f)
+                            })
+                            values: Env.audioFormats
+                            value: Task.audioFormat
+                            onChosen: function (f) { Task.setAudioFormat(f) }
                         }
                         RowLayout {
                             Layout.fillWidth: true
@@ -451,6 +506,8 @@ Item {
                                 onClicked: outputPicker.open()
                             }
                         }
+
+                        Item { Layout.fillHeight: true }
                     }
                 }
             }
@@ -479,12 +536,18 @@ Item {
                     }
                     Text {
                         Layout.fillWidth: true
-                        text: [
-                            I18n.strings["advanced.chunk"].arg(Task.chunkLength),
-                            I18n.strings["advanced.sensitivity"].arg(
-                                Fmt.tr("sensitivity." + Task.sensitivity, Task.sensitivity)),
-                            Fmt.tr("temp." + Task.tempAction, Task.tempAction)
-                        ].join(" · ")
+                        // В режиме звука параметры распознавания не применяются,
+                        // а промежуточных файлов не остаётся — значит и сводке
+                        // рассказывать о них нечего.
+                        text: screen.audioOnly
+                            ? [I18n.strings["advanced.asrOnly"],
+                               I18n.strings["advanced.noTemp"]].join(" · ")
+                            : [
+                                I18n.strings["advanced.chunk"].arg(Task.chunkLength),
+                                I18n.strings["advanced.sensitivity"].arg(
+                                    Fmt.tr("sensitivity." + Task.sensitivity, Task.sensitivity)),
+                                Fmt.tr("temp." + Task.tempAction, Task.tempAction)
+                            ].join(" · ")
                         color: Theme.textMuted
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSmall
@@ -574,10 +637,12 @@ Item {
                 x: Theme.gapPanels
                 width: parent.width - Theme.gapPanels * 2
                 elide: Text.ElideRight
+                // В режиме звука модель не при чём — показываем формат файла
                 text: [
                     Env.ffmpegOk ? I18n.strings["ready.ffmpeg"].arg(Env.ffmpegVersion)
                                  : I18n.strings["ready.ffmpegMissing"],
-                    Task.model,
+                    screen.audioOnly ? Fmt.tr("audio." + Task.audioFormat, Task.audioFormat)
+                                     : Task.model,
                     I18n.strings["ready.free"].arg(Fmt.gigabytes(Env.freeBytes))
                 ].join(" · ")
                 color: Theme.textMuted

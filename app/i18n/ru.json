@@ -170,5 +170,19 @@
   "main.modelWillDownload": "Модель %1 ещё не скачана — %2. Скачаю и сразу начну работу.",
   "stage.download": "Скачиваю модель",
   "run.downloaded": "%1 из %2",
-  "notice.DOWNLOAD_FAILED": "Скачивание сорвалось: %1"
+  "notice.DOWNLOAD_FAILED": "Скачивание сорвалось: %1",
+  "out.target": "Что нужно на выходе",
+  "out.target.text": "Текст",
+  "out.target.both": "Текст и звуковой файл",
+  "out.target.audio": "Только звуковой файл",
+  "out.audioFormat": "Формат звука",
+  "audio.wav16": "WAV 16 кГц моно",
+  "audio.wav48": "WAV 48 кГц стерео",
+  "audio.mp3": "MP3",
+  "audio.m4a": "M4A",
+  "asr.notNeeded": "распознавания не будет — нужен только звук",
+  "ready.modelNotNeeded": "модель не нужна — распознавания не будет",
+  "advanced.noTemp": "промежуточных файлов не остаётся",
+  "advanced.asrOnly": "параметры распознавания в этом режиме не применяются",
+  "ready.audioOnly": "звук извлекается без распознавания"
 }
