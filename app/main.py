@@ -38,8 +38,13 @@ def _claim_own_identity() -> None:
     python.exe, там будет логотип Python, сколько окну значков ни ставь.
     Собственный идентификатор разрывает эту связь: система заводит нам свою
     ячейку в панели и берёт значок из окна.
+
+    Собранной программе это не нужно: у неё свой исполняемый файл со своим
+    значком, и Windows сама заводит ей ячейку. Хуже того, объявленный
+    идентификатор система ищет среди ярлыков — не найдя, она может оставить
+    ячейку без значка вовсе.
     """
-    if not sys.platform.startswith("win"):
+    if not sys.platform.startswith("win") or platform.is_packed():
         return
     import ctypes
 
@@ -57,6 +62,19 @@ def _app_icon() -> QIcon:
     упрощённый знак — в 16 px подробный превращается в пятно.
     """
     icon = QIcon()
+
+    # Готовые png надёжнее: их читает сам Qt, без отрисовщика SVG и его
+    # подключаемых модулей. В собранной программе один недостающий модуль
+    # оставил бы окно вообще без значка.
+    ready = ICON_DIR / "build"
+    sizes = [16, 24, 32, 48, 64, 128, 256, 512]
+    if all((ready / f"icon-{size}.png").exists() for size in sizes):
+        for size in sizes:
+            icon.addFile(str(ready / f"icon-{size}.png"), QSize(size, size))
+        return icon
+
+    # Их нет — рисуем из SVG. Для мелких размеров берём упрощённый знак:
+    # в 16 px подробный превращается в пятно.
     small = ICON_DIR / "app-icon-small.svg"
     large = ICON_DIR / "app-icon.svg"
     for size in (16, 24):
