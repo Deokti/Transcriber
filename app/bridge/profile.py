@@ -13,7 +13,7 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from app.bridge.paths import clean
 from app.bridge.settings import SettingsBridge
 from core import platform
-from core.profile import Profile
+from core.profile import TARGET_AUDIO, TARGET_BOTH, TARGET_TEXT, Profile
 
 
 class ProfileBridge(QObject):
@@ -33,6 +33,33 @@ class ProfileBridge(QObject):
             return
         setattr(self._profile, name, value)
         self.changed.emit()
+
+    # --- что нужно на выходе (FR-8, FR-37) ------------------------------
+    @Property(str, notify=changed)
+    def target(self) -> str:
+        """text · audio · both — как их зовёт ядро."""
+        return self._profile.target
+
+    @Slot(str)
+    def setTarget(self, value: str) -> None:
+        self._set("target", value)
+
+    @Property(str, notify=changed)
+    def audioFormat(self) -> str:
+        return self._profile.audio_format
+
+    @Slot(str)
+    def setAudioFormat(self, value: str) -> None:
+        self._set("audio_format", value)
+
+    @Property(bool, notify=changed)
+    def needsText(self) -> bool:
+        """Будет ли распознавание. Нет — значит модель и язык ни при чём."""
+        return self._profile.target in (TARGET_TEXT, TARGET_BOTH)
+
+    @Property(bool, notify=changed)
+    def needsAudio(self) -> bool:
+        return self._profile.target in (TARGET_AUDIO, TARGET_BOTH)
 
     # --- распознавание -------------------------------------------------
     @Property(str, notify=changed)

@@ -69,6 +69,10 @@ ENCODINGS = {
 }
 
 
+#: Порядок для интерфейса: от самого дешёвого к самому «человеческому».
+AUDIO_ORDER = (AUDIO_WAV16, AUDIO_WAV48, AUDIO_MP3, AUDIO_M4A)
+
+
 def encoding(name: str) -> Encoding:
     return ENCODINGS.get(name, ENCODINGS[AUDIO_WAV16])
 

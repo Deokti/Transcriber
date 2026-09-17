@@ -13,6 +13,7 @@ from core import platform
 from core.env import languages, models
 from core.events import CoreError
 from core.formats import SUPPORTED as EXPORT_FORMATS
+from core.media import AUDIO_ORDER
 from core.media import ensure_tools, version
 
 
@@ -55,6 +56,7 @@ class EnvBridge(QObject):
             "models": [dict(m.as_data(), downloaded=models.is_downloaded(m.id, models_dir))
                        for m in models.CATALOG],
             "formats": sorted(EXPORT_FORMATS),
+            "audioFormats": list(AUDIO_ORDER),
         }
         self.changed.emit()
 
@@ -115,6 +117,11 @@ class EnvBridge(QObject):
         остался бы прежним.
         """
         return [m["id"] for m in self._get("models", []) if m["downloaded"]]
+
+    @Property("QVariantList", notify=changed)
+    def audioFormats(self) -> list:
+        """Виды звукового файла, которые ядро умеет сделать (FR-8)."""
+        return self._get("audioFormats", [])
 
     @Slot(str, result=bool)
     def modelDownloaded(self, model_id: str) -> bool:
