@@ -205,5 +205,10 @@
   "verdict.clean": "повторов не найдено",
   "verdict.minor": "мелкие повторы",
   "verdict.stuck": "есть залипания: %1 мест",
-  "run.toResult": "К результату"
+  "run.toResult": "К результату",
+  "deps.getFfmpeg": "Скачать ffmpeg — %1",
+  "deps.downloading": "Качаю ffmpeg… %1",
+  "deps.cancel": "Отменить",
+  "deps.failed": "Не получилось скачать: %1",
+  "deps.source": "%1, %2"
 }

@@ -205,5 +205,10 @@
   "verdict.clean": "no repeats found",
   "verdict.minor": "minor repeats",
   "verdict.stuck": "stuck passages: %1",
-  "run.toResult": "To the result"
+  "run.toResult": "To the result",
+  "deps.getFfmpeg": "Download ffmpeg — %1",
+  "deps.downloading": "Downloading ffmpeg… %1",
+  "deps.cancel": "Cancel",
+  "deps.failed": "Download failed: %1",
+  "deps.source": "%1, %2"
 }

@@ -14,8 +14,8 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
 
-from app.bridge import (EnvBridge, ProfileBridge, QueueBridge, RunBridge,
-                        SettingsBridge, ShellBridge)
+from app.bridge import (DepsBridge, EnvBridge, ProfileBridge, QueueBridge,
+                        RunBridge, SettingsBridge, ShellBridge)
 from app.i18n import I18n
 
 HERE = Path(__file__).resolve().parent
@@ -128,6 +128,7 @@ def main(argv: list[str] | None = None) -> int:
     queue = QueueBridge(settings)
     run = RunBridge(settings, queue, profile)
     shell = ShellBridge()
+    deps = DepsBridge(env)
     i18n = I18n(ui_lang or settings.language)
     # Язык меняют в настройках — каталог переключается следом
     settings.changed.connect(lambda: i18n.setLanguage(settings.language))
@@ -143,6 +144,7 @@ def main(argv: list[str] | None = None) -> int:
     context.setContextProperty("Queue", queue)
     context.setContextProperty("Run", run)
     context.setContextProperty("Shell", shell)
+    context.setContextProperty("Deps", deps)
     if start_screen:
         engine.setInitialProperties({"screen": start_screen})
     engine.load(QUrl.fromLocalFile(str(QML_DIR / "Main.qml")))

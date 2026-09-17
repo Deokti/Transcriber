@@ -117,7 +117,10 @@ Item {
             // справа проверка готовности. Так в макете.
             Panel {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 150
+                // Пустой экран ровно на 150, но кнопка «Скачать ffmpeg»
+                // и строка источника под ней не должны обрезаться.
+                Layout.preferredHeight: Math.max(150, readyColumn.implicitHeight
+                                                      + Theme.padPanel * 2)
                 // С очередью панель занимает всё свободное место: список
                 // растёт вниз, проверка готовности остаётся справа.
                 Layout.fillHeight: screen.hasFiles
@@ -216,6 +219,7 @@ Item {
                     }
 
                     ColumnLayout {
+                        id: readyColumn
                         Layout.preferredWidth: 250
                         Layout.alignment: Qt.AlignTop
                         spacing: 6
@@ -289,6 +293,50 @@ Item {
                                 }
                             }
                         }
+                        // ffmpeg не нашёлся — предлагаем принести его сами.
+                        // Без него не будет ни звука, ни распознавания.
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Layout.topMargin: Theme.gapLabel
+                            visible: !Env.ffmpegOk
+                            spacing: Theme.gapButtons
+
+                            AppButton {
+                                text: Deps.busy
+                                    ? I18n.strings["deps.downloading"]
+                                          .arg(Math.round(Deps.percent * 100) + "%")
+                                    : I18n.strings["deps.getFfmpeg"]
+                                          .arg(Fmt.fileSize((Deps.ffmpegBuild.sizeMb || 0)
+                                                            * 1024 * 1024))
+                                enabled: !Deps.busy
+                                Layout.preferredHeight: Theme.hRowButton
+                                onClicked: Deps.getFfmpeg()
+                            }
+                            AppButton {
+                                visible: Deps.busy
+                                flat_: true
+                                text: I18n.strings["deps.cancel"]
+                                Layout.preferredHeight: Theme.hRowButton
+                                onClicked: Deps.cancel()
+                            }
+                            Item { Layout.fillWidth: true }
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            visible: !Env.ffmpegOk && !Deps.busy
+                                     && Deps.ffmpegBuild.source !== undefined
+                            text: Deps.error.code !== undefined
+                                ? I18n.strings["deps.failed"].arg(Deps.error.code)
+                                : I18n.strings["deps.source"]
+                                      .arg(Deps.ffmpegBuild.source)
+                                      .arg(Deps.ffmpegBuild.license)
+                            wrapMode: Text.WordWrap
+                            color: Deps.error.code !== undefined ? Theme.errorFg : Theme.textMuted
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSmall
+                        }
+
                         Item { Layout.fillHeight: true }
                     }
                 }
