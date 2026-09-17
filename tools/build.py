@@ -57,6 +57,14 @@ EXTRAS = [("LICENSE", "LICENSE.txt"),
 #: PyInstaller не видит эти модули сам: они подтягиваются по имени.
 HIDDEN = ["faster_whisper", "ctranslate2", "onnxruntime", "av", "huggingface_hub"]
 
+#: Пакеты, у которых кроме кода есть данные. PyInstaller забирает только код,
+#: а faster-whisper держит рядом модель тишины — без неё распознавание падает.
+COLLECT = ["faster_whisper"]
+
+#: Что обязано оказаться в готовой папке. Проверяем сразу после сборки: такую
+#: пропажу видно только на чужой машине, в середине первой же работы.
+REQUIRED = {"модель тишины (VAD)": "silero_*.onnx"}
+
 ICONS = {"windows": "app/icons/build/app.ico", "macos": "app/icons/build/app.icns"}
 
 #: Линуксу нужна запись в меню рабочего стола. Готовый .desktop в архив не
@@ -127,6 +135,8 @@ def build(with_cuda: bool) -> Path:
         cmd += ["--add-data", f"{ROOT / source}{os.pathsep}{where}"]
     for module in HIDDEN:
         cmd += ["--hidden-import", module]
+    for package in COLLECT:
+        cmd += ["--collect-data", package]
 
     if with_cuda:
         # Библиотеки CUDA кладём деревом как есть: их грузит не импорт,
@@ -142,11 +152,20 @@ def build(with_cuda: bool) -> Path:
     run(cmd)
 
     folder = app_folder(target)
+    check_bundle(folder)
     for source, name in EXTRAS:
         if (ROOT / source).exists():
             shutil.copy2(ROOT / source, folder.parent / name if SYSTEM == "macos"
                          else folder / name)
     return folder
+
+
+def check_bundle(folder: Path) -> None:
+    """Смотрит, что в собранную папку доехали не только модули, но и данные."""
+    lost = [what for what, pattern in REQUIRED.items()
+            if next(folder.rglob(pattern), None) is None]
+    if lost:
+        raise SystemExit("в сборке не хватает: " + ", ".join(lost))
 
 
 def app_folder(target: str) -> Path:
