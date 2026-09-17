@@ -1,0 +1,16 @@
+# Список типов этой папки.
+#
+# Во время работы Qt нашёл бы их и сканированием каталога, но без
+# этого файла редакторы и qmllint не знают, что за типы тут лежат:
+# ни автодополнения, ни перехода к определению.
+
+AppButton 1.0 AppButton.qml
+CheckField 1.0 CheckField.qml
+CheckMark 1.0 CheckMark.qml
+ComboField 1.0 ComboField.qml
+FileRow 1.0 FileRow.qml
+FolderRow 1.0 FolderRow.qml
+Panel 1.0 Panel.qml
+ProgressBar 1.0 ProgressBar.qml
+SectionTitle 1.0 SectionTitle.qml
+StageRow 1.0 StageRow.qml
