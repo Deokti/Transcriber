@@ -117,6 +117,12 @@ def free_bytes(path: Path) -> int:
 
 
 # --- CUDA на Windows и Linux ------------------------------------------------
+#: Итог подключения CUDA. Считается один раз: загруженные в процесс
+#: библиотеки никуда не деваются, а искать их заново при каждом опросе
+#: машины — сотня миллисекунд в потоке окна.
+_cuda_state: tuple[bool, dict] | None = None
+
+
 def prepare_cuda(emit=None) -> tuple[bool, dict]:
     """Подключает cuBLAS и cuDNN и говорит, готова ли видеокарта.
 
@@ -127,12 +133,43 @@ def prepare_cuda(emit=None) -> tuple[bool, dict]:
     Возвращает (готова, подробности). Текста не возвращает: подробности
     машинные, фразу собирает интерфейс.
     """
-    info: dict = {"system": system_name(), "dll_dirs": 0, "loaded": 0, "missing": []}
+    global _cuda_state
+    if _cuda_state is None:
+        _cuda_state = _attach_cuda()
+    ok, info = _cuda_state
+    if emit is not None:
+        from core.events import Event, Kind
 
+        emit(Event(Kind.INFO, code=Code.CUDA_READY if ok else Code.CUDA_UNAVAILABLE, data=info))
+    return ok, info
+
+
+def _attach_cuda() -> tuple[bool, dict]:
+    info: dict = {"system": system_name(), "dll_dirs": 0, "loaded": 0, "missing": []}
     if system_name() != "windows":
         # На Linux библиотеки находит сам загрузчик, на маке CUDA не существует.
         return True, info
 
+    dll_dirs, dll_files = _cuda_libraries(_cuda_roots())
+    for folder in dll_dirs:
+        try:
+            os.add_dll_directory(folder)
+        except OSError:
+            pass
+    if dll_dirs:
+        os.environ["PATH"] = os.pathsep.join(dll_dirs) + os.pathsep + os.environ.get("PATH", "")
+
+    loaded = _load_dlls([p for p in dll_files
+                         if os.path.basename(p).lower().startswith(("cublas", "cudnn", "cudart"))])
+    names = {os.path.basename(p).lower() for p in loaded}
+    missing = [lib for lib in ("cublas", "cudnn") if not any(n.startswith(lib) for n in names)]
+
+    info.update(dll_dirs=len(dll_dirs), loaded=len(loaded), missing=missing)
+    return not missing, info
+
+
+def _cuda_roots() -> list[str]:
+    """Где могут лежать библиотеки: пакет nvidia, папка сборки, site-packages, torch."""
     roots: list[str] = []
     try:
         import nvidia  # пакет-пространство имён: __file__ пустой, берём __path__
@@ -148,7 +185,7 @@ def prepare_cuda(emit=None) -> tuple[bool, dict]:
     if not roots:
         import site
 
-        for sp in set(site.getsitepackages() + [site.getusersitepackages()]):
+        for sp in {*site.getsitepackages(), site.getusersitepackages()}:
             candidate = Path(sp) / "nvidia"
             if candidate.is_dir():
                 roots.append(str(candidate))
@@ -160,7 +197,11 @@ def prepare_cuda(emit=None) -> tuple[bool, dict]:
             roots.append(str(torch_lib))
     except Exception:
         pass
+    return roots
 
+
+def _cuda_libraries(roots: list[str]) -> tuple[list[str], list[str]]:
+    """Папки с DLL и сами DLL под перечисленными корнями."""
     dll_dirs: list[str] = []
     dll_files: list[str] = []
     for root in roots:
@@ -169,48 +210,28 @@ def prepare_cuda(emit=None) -> tuple[bool, dict]:
             if dlls:
                 dll_dirs.append(dirpath)
                 dll_files += [os.path.join(dirpath, f) for f in dlls]
+    return dll_dirs, dll_files
 
-    for d in dll_dirs:
-        try:
-            os.add_dll_directory(d)
-        except OSError:
-            pass
-    if dll_dirs:
-        os.environ["PATH"] = os.pathsep.join(dll_dirs) + os.pathsep + os.environ.get("PATH", "")
 
+def _load_dlls(targets: list[str]) -> set[str]:
+    """Грузит библиотеки в процесс. Несколько проходов: они зависят друг от друга."""
     import ctypes
 
-    targets = [p for p in dll_files
-               if os.path.basename(p).lower().startswith(("cublas", "cudnn", "cudart"))]
     loaded: set[str] = set()
-    for _ in range(4):  # несколько проходов: библиотеки зависят друг от друга
+    for _ in range(4):
         progress = False
-        for p in targets:
-            if p in loaded:
+        for path in targets:
+            if path in loaded:
                 continue
             try:
-                ctypes.WinDLL(p)
-                loaded.add(p)
+                ctypes.WinDLL(path)
+                loaded.add(path)
                 progress = True
             except OSError:
                 pass
         if not progress:
             break
-
-    names = {os.path.basename(p).lower() for p in loaded}
-    missing = []
-    if not any(n.startswith("cublas") for n in names):
-        missing.append("cublas")
-    if not any(n.startswith("cudnn") for n in names):
-        missing.append("cudnn")
-
-    info.update(dll_dirs=len(dll_dirs), loaded=len(loaded), missing=missing)
-    ok = not missing
-    if emit is not None:
-        from core.events import Event, Kind
-
-        emit(Event(Kind.INFO, code=Code.CUDA_READY if ok else Code.CUDA_UNAVAILABLE, data=info))
-    return ok, info
+    return loaded
 
 
 @dataclass(frozen=True)
@@ -266,7 +287,7 @@ def devices() -> list[Device]:
         # а CUDA бывает только у NVIDIA, то есть не на маке.
         return [Device("cuda", False, NO_CUDA_ON_MACOS), cpu]
 
-    ok, info = prepare_cuda()
+    ok, _ = prepare_cuda()
     if not ok:
         # Из исходников это значит «доставьте библиотеки», а в собранной
         # программе — «у этой сборки нет поддержки видеокарты»: библиотеки
@@ -312,7 +333,7 @@ def open_file(path) -> None:
     target = str(path)
     system = system_name()
     if system == "windows":
-        os.startfile(target)                      # noqa: S606 — штатный способ Windows
+        os.startfile(target)                      # штатный способ Windows
     elif system == "macos":
         subprocess.Popen(["open", target])
     else:
