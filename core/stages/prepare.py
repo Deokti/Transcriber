@@ -18,8 +18,7 @@ def run(job: Job, ctx: RunContext) -> Path:
         return job.source
 
     duration = job.media.duration if job.media else 0.0
-    filters = build_filters(job.profile.loudnorm, job.profile.denoise,
-                            job.profile.trim_silence)
+    filters = build_filters(job.profile.loudnorm, job.profile.denoise)
 
     # Распознавания не будет — значит это и есть заказанный файл, и делать
     # его сразу нужно в заказанном формате, а не пережимать потом.

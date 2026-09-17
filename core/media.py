@@ -188,20 +188,85 @@ DENOISE_FILTERS = {
 }
 
 
-def build_filters(loudnorm: bool = True, denoise: str = "off",
-                  trim_silence: bool = False) -> str:
-    """Цепочка -af. Порядок важен: чистим, режем края, равняем громкость."""
+#: Тишина короче этого — пауза в речи, а не край записи.
+EDGE_SILENCE_SEC = 0.3
+
+
+def build_filters(loudnorm: bool = True, denoise: str = "off") -> str:
+    """Цепочка -af. Порядок важен: сначала чистим, потом равняем громкость.
+
+    Края здесь не режутся: это делается диапазоном -ss/-to, см. speech_bounds.
+    """
     chain = []
     chain += DENOISE_FILTERS.get(denoise, [])
-    if trim_silence:
-        # Срезаем тишину только по краям: в начале — напрямую, в конце —
-        # тем же приёмом на развёрнутом звуке. Середина не трогается,
-        # паузы внутри речи остаются на месте.
-        cut = f"silenceremove=start_periods=1:start_silence=0:start_threshold={SILENCE_DB}"
-        chain += [cut, "areverse", cut, "areverse"]
     if loudnorm:
         chain.append("loudnorm=I=-16:TP=-1.5:LRA=11")
     return ",".join(chain)
+
+
+def speech_bounds(ffmpeg: Path, src: Path, *, track: int = 0, duration: float = 0.0,
+                  should_cancel: Callable[[], bool] | None = None) -> tuple[float, float | None]:
+    """Где в записи начинается и кончается речь: (начало, конец или None).
+
+    Тишину по краям раньше срезал silenceremove, а конец — тот же фильтр на
+    развёрнутом звуке. Разворот держит всю запись в памяти: на часовой
+    лекции ffmpeg брал 340 МБ, на трёхчасовой — под гигабайт. Теперь
+    отдельный проход silencedetect только слушает и пишет, где тишина, а
+    сама обрезка делается диапазоном при извлечении — потоком.
+
+    Середина не трогается: паузы внутри речи остаются на месте.
+    """
+    cmd = [str(ffmpeg), "-hide_banner", "-nostdin", "-loglevel", "info",
+           "-i", str(src), "-map", f"0:a:{track}?", "-vn", "-sn", "-dn",
+           "-af", f"silencedetect=noise={SILENCE_DB}:d={EDGE_SILENCE_SEC}",
+           "-f", "null", "-"]
+    first: list[float] = []          # первая тишина: начало и конец
+    last: list[float] = []           # последняя тишина: начало и конец
+    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                            text=True, encoding="utf-8", errors="replace",
+                            **platform.quiet_child())
+
+    def listen() -> None:
+        # Держим только первую и последнюю тишину: у длинной записи пауз
+        # сотни, а нужны нам одни края.
+        for line in proc.stderr:
+            if "silence_start:" in line:
+                begin = _after(line, "silence_start:")
+                if begin is None:
+                    continue
+                if not first:
+                    first.append(begin)
+                last[:] = [begin]
+            elif "silence_end:" in line:
+                end = _after(line, "silence_end:")
+                if end is None:
+                    continue
+                if len(first) == 1:
+                    first.append(end)
+                if len(last) == 1:
+                    last.append(end)
+
+    reader = threading.Thread(target=listen, name="silence-reader", daemon=True)
+    reader.start()
+    try:
+        _wait(proc, should_cancel)
+    finally:
+        _end(proc, [reader])
+
+    start = first[1] if len(first) == 2 and first[0] <= EDGE_SILENCE_SEC else 0.0
+    # Тишина в самом конце: её конец совпадает с концом записи. Без
+    # длительности не отличить край от паузы — тогда конец не режем.
+    end = None
+    if duration and len(last) == 2 and last[1] >= duration - 0.5 and last[0] > start:
+        end = last[0]
+    return start, end
+
+
+def _after(line: str, marker: str) -> float | None:
+    try:
+        return float(line.split(marker, 1)[1].split("|")[0].strip())
+    except (IndexError, ValueError):
+        return None
 
 
 def extract_audio(
@@ -231,9 +296,19 @@ def extract_audio(
     dst.parent.mkdir(parents=True, exist_ok=True)
     how = encoding(audio_format)
     cmd = [str(ffmpeg), "-hide_banner", "-nostdin", "-y", "-loglevel", "error",
-           "-i", str(src), "-map", f"0:a:{track}?", "-vn", "-sn", "-dn",
-           "-ac", str(how.channels), "-ar", str(how.rate), *how.args]
-    filters = build_filters(loudnorm, denoise, trim_silence)
+           "-i", str(src), "-map", f"0:a:{track}?", "-vn", "-sn", "-dn"]
+    if trim_silence:
+        # Диапазон ставим после -i: ffmpeg декодирует и отбрасывает лишнее
+        # потоком, зато режет точно по времени, а не по ключевому кадру.
+        start, end = speech_bounds(ffmpeg, src, track=track, duration=duration,
+                                   should_cancel=should_cancel)
+        if start > 0:
+            cmd += ["-ss", f"{start:.3f}"]
+        if end is not None:
+            cmd += ["-to", f"{end:.3f}"]
+        duration = (end if end is not None else duration) - start
+    cmd += ["-ac", str(how.channels), "-ar", str(how.rate), *how.args]
+    filters = build_filters(loudnorm, denoise)
     if filters:
         cmd += ["-af", filters]
     # Готовый результат заменяем только после успеха. Ошибка или отмена
@@ -290,34 +365,46 @@ def _run_ffmpeg(cmd: list[str], duration: float,
             thread = threading.Thread(target=read, name="ffmpeg-reader", daemon=True)
             thread.start()
             readers.append(thread)
-        while True:
-            if should_cancel is not None and should_cancel():
-                raise Cancelled()
-            report()
-            try:
-                code = proc.wait(timeout=0.1)
-                break
-            except subprocess.TimeoutExpired:
-                pass
+        code = _wait(proc, should_cancel, report)
     finally:
-        try:
-            if proc.poll() is None:
-                proc.terminate()
-                try:
-                    proc.wait(timeout=2)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
-                    proc.wait()
-        finally:
-            for thread in readers:
-                thread.join()
-            proc.stdout.close()
-            proc.stderr.close()
+        _end(proc, readers)
 
     if should_cancel is not None and should_cancel():
         raise Cancelled()
     report()
     return code, "".join(errors)
+
+
+def _wait(proc: subprocess.Popen, should_cancel: Callable[[], bool] | None,
+          tick: Callable[[], None] | None = None) -> int:
+    """Ждёт процесс, раз в 0,1 с проверяя отмену. Отмена — Cancelled."""
+    while True:
+        if should_cancel is not None and should_cancel():
+            raise Cancelled()
+        if tick is not None:
+            tick()
+        try:
+            return proc.wait(timeout=0.1)
+        except subprocess.TimeoutExpired:
+            pass
+
+
+def _end(proc: subprocess.Popen, readers: list[threading.Thread]) -> None:
+    """Снимает процесс, если он ещё жив, и закрывает трубы после читателей."""
+    try:
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+    finally:
+        for thread in readers:
+            thread.join()
+        for pipe in (proc.stdout, proc.stderr):
+            if pipe is not None:
+                pipe.close()
 
 
 def describe_tracks(tracks: list[AudioTrack]) -> list[dict]:
