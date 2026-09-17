@@ -13,6 +13,7 @@ from core.context import RunContext
 from core.events import Cancelled, Code, CoreError, Event, Kind, Stage
 from core.formats import segments as segments_file
 from core.job import Job, JobState
+from core.media import encoding
 from core.profile import TARGET_AUDIO, TARGET_BOTH, TARGET_TEXT
 from core.stages import audio, check, cleanup, export, prepare, probe, transcribe
 
@@ -113,6 +114,7 @@ def run_job(job: Job, ctx: RunContext) -> Job:
         # data отдаём словарём: в нём может оказаться поле с именем
         # аргумента события, и тогда вызов развалится
         ctx.emit(Event(Kind.FAILED, None, e.code, {"name": job.source.name, **e.data}))
+        _cleanup_failed(job, ctx)
         return job
     except Exception as e:  # чужая ошибка не должна уронить очередь
         job.state = JobState.FAILED
@@ -120,6 +122,7 @@ def run_job(job: Job, ctx: RunContext) -> Job:
         job.error_data = {"reason": repr(e)}
         ctx.emit(Event(Kind.FAILED, None, Code.UNEXPECTED,
                        {"name": job.source.name, "reason": repr(e)}))
+        _cleanup_failed(job, ctx)
         return job
 
     job.state = JobState.DONE
@@ -128,6 +131,14 @@ def run_job(job: Job, ctx: RunContext) -> Job:
                     "artifacts": {k: str(v) for k, v in job.artifacts.items()},
                     **job.stats}))
     return job
+
+
+def _cleanup_failed(job: Job, ctx: RunContext) -> None:
+    """Убирает временный WAV и при ошибке, соблюдая выбранную политику."""
+    try:
+        cleanup.run(job, ctx.without_cancel())
+    except Exception:
+        pass   # ошибка уборки не должна заслонять исходную ошибку
 
 
 def _save_partial(job: Job, ctx: RunContext) -> None:
@@ -152,10 +163,7 @@ def _save_partial(job: Job, ctx: RunContext) -> None:
                        artifacts={k: str(v) for k, v in job.artifacts.items()})
         except Exception as e:
             safe.event(Kind.WARNING, None, Code.UNEXPECTED, reason=repr(e))
-    try:
-        cleanup.run(job, safe)
-    except Exception:
-        pass   # уборка на аварийном пути молчит: главное уже спасено
+    _cleanup_failed(job, safe)
 
 
 def _already_done(job: Job, ctx: RunContext) -> bool:
@@ -163,8 +171,14 @@ def _already_done(job: Job, ctx: RunContext) -> bool:
     if job.profile.force or job.profile.target == TARGET_AUDIO:
         return False
     existing = [f for f in job.profile.formats if job.output(f".{f}").exists()]
-    if not existing:
+    if not existing or len(existing) != len(job.profile.formats):
         return False
+
+    audio_path = None
+    if job.profile.target == TARGET_BOTH:
+        audio_path = job.beside(encoding(job.profile.audio_format).suffix)
+        if not audio_path.is_file() or audio_path.stat().st_size == 0:
+            return False
 
     # Документ есть, но посчитан другой моделью — значит лежит не то, что
     # просят сейчас. Модель меняют как раз затем, чтобы получить другой
@@ -176,6 +190,8 @@ def _already_done(job: Job, ctx: RunContext) -> bool:
     # Готовое — тоже результат: окну нужно, что именно лежит и где.
     for name in existing:
         job.artifacts[name] = job.output(f".{name}")
+    if audio_path is not None:
+        job.artifacts["audio"] = audio_path
     ctx.event(Kind.WARNING, None, Code.OUTPUT_EXISTS,
               name=job.source.name, formats=existing,
               segments=str(job.output(segments_file.SUFFIX)))
