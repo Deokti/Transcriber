@@ -90,6 +90,7 @@
   "model.notDownloaded": "not downloaded",
   "device.reason.NO_CUDA_ON_MACOS": "no graphics card on Mac: the engine talks to them only through CUDA",
   "device.reason.NO_CUDA_LIBS": "graphics card unavailable: CUDA libraries not found",
+  "device.reason.NO_CUDA_IN_BUILD": "this build has no graphics card support — get the CUDA build",
   "device.reason.NO_CUDA_DEVICE": "no CUDA-capable card found",
   "ready.ffmpeg": "ffmpeg %1",
   "ready.ffmpegMissing": "ffmpeg not found",

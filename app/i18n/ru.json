@@ -90,6 +90,7 @@
   "model.notDownloaded": "не скачана",
   "device.reason.NO_CUDA_ON_MACOS": "видеокарта на Mac недоступна: движок работает с ними только через CUDA",
   "device.reason.NO_CUDA_LIBS": "видеокарта недоступна: не найдены библиотеки CUDA",
+  "device.reason.NO_CUDA_IN_BUILD": "в этой сборке нет поддержки видеокарты — нужна сборка с CUDA",
   "device.reason.NO_CUDA_DEVICE": "видеокарта с CUDA не обнаружена",
   "ready.ffmpeg": "ffmpeg %1",
   "ready.ffmpegMissing": "ffmpeg не найден",

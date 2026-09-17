@@ -31,6 +31,11 @@ def system_name() -> str:
     return "linux"
 
 
+def is_packed() -> bool:
+    """Собранная программа, а не запуск из исходников."""
+    return bool(getattr(sys, "frozen", False))
+
+
 def is_portable() -> bool:
     return (APP_DIR / PORTABLE_MARKER).exists()
 
@@ -210,6 +215,7 @@ class Device:
 NO_CUDA_ON_MACOS = "NO_CUDA_ON_MACOS"
 NO_CUDA_LIBS = "NO_CUDA_LIBS"
 NO_CUDA_DEVICE = "NO_CUDA_DEVICE"
+NO_CUDA_IN_BUILD = "NO_CUDA_IN_BUILD"
 
 
 def cuda_device_count() -> int:
@@ -248,7 +254,11 @@ def devices() -> list[Device]:
 
     ok, info = prepare_cuda()
     if not ok:
-        return [Device("cuda", False, NO_CUDA_LIBS), cpu]
+        # Из исходников это значит «доставьте библиотеки», а в собранной
+        # программе — «у этой сборки нет поддержки видеокарты»: библиотеки
+        # туда либо положили при сборке, либо нет, и человек их не доставит.
+        reason = NO_CUDA_IN_BUILD if is_packed() else NO_CUDA_LIBS
+        return [Device("cuda", False, reason), cpu]
     if cuda_device_count() < 1:
         return [Device("cuda", False, NO_CUDA_DEVICE), cpu]
     return [Device("cuda", True), cpu]
