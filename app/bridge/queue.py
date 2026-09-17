@@ -101,6 +101,10 @@ class QueueBridge(QObject):
         self._pool = QThreadPool(self)
         self._pool.setMaxThreadCount(4)   # ffprobe упирается в диск, не в счёт
 
+    def shutdown(self) -> None:
+        """Перед выходом: дать разборам файлов закончиться, а не обрывать их."""
+        self._pool.waitForDone(3000)
+
     # --- что видно окну -------------------------------------------------
     @Property("QVariantList", notify=changed)
     def files(self) -> list:

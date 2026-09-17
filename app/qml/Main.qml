@@ -9,6 +9,9 @@ Window {
     id: root
 
     property string screen: "main"
+    // Закрыть окно посреди работы — то же, что «Отменить всё»: сперва ядро
+    // спасает посчитанное, и только потом окно уходит.
+    property bool closing: false
 
     width: 1080
     height: 720
@@ -52,6 +55,14 @@ Window {
         onAgain: root.screen = "main"
     }
 
+    onClosing: function (close) {
+        if (Run.running) {
+            close.accepted = false
+            root.closing = true
+            Run.cancelAll()
+        }
+    }
+
     // Экран переключает не кнопка, а сам факт начала работы: запуск может
     // и не случиться — например, не нашёлся ffmpeg.
     Connections {
@@ -60,6 +71,11 @@ Window {
 
         // Человек мог уйти пить чай: пусть вернётся к результату, а не к
         // экрану, который замер на ста процентах.
-        function onFinished() { root.screen = "result" }
+        function onFinished() {
+            if (root.closing)
+                root.close()
+            else
+                root.screen = "result"
+        }
     }
 }

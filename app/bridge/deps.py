@@ -126,6 +126,11 @@ class DepsBridge(QObject):
     def cancel(self) -> None:
         self._stop = True
 
+    def shutdown(self) -> None:
+        """Перед выходом: остановить скачивание и дождаться потока."""
+        self._stop = True
+        self._pool.waitForDone(5000)
+
     # --- ответы из потока -----------------------------------------------
     def _on_progress(self, done: float, total: float) -> None:
         self._done = done

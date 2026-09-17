@@ -251,6 +251,10 @@ class RunBridge(QObject):
         if self._runner and not self._runner.busy:
             self._runner.release()
 
+    def shutdown(self) -> bool:
+        """Перед выходом: отменить работу и дождаться, пока спасут посчитанное."""
+        return self._runner.shutdown() if self._runner else True
+
     # --- события из ядра ------------------------------------------------
     def _on_event(self, event: Event) -> None:
         kind, stage, code, data = event.kind, event.stage, event.code, event.data

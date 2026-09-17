@@ -122,6 +122,20 @@ class JobRunner:
         if self._thread is not None:
             self._thread.join(timeout)
 
+    def shutdown(self, timeout: float = 30.0) -> bool:
+        """Программу закрывают посреди работы: отменить и дождаться сохранения.
+
+        Рабочий поток — daemon, и выход из процесса оборвал бы его где
+        угодно, хоть посреди экспорта или уборки. Поэтому сначала отмена,
+        потом ожидание: за это время конвейер спасает посчитанное.
+        Возвращает True, если поток успел закончить.
+        """
+        if not self.busy:
+            return True
+        self.cancel_all()
+        self.join(timeout)
+        return not self.busy
+
     def release(self) -> None:
         """Выгружает модель из памяти. Зовут, когда работа надолго закончена."""
         self._backend.unload()

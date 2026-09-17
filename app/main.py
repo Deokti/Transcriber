@@ -204,7 +204,15 @@ def main(argv: list[str] | None = None) -> int:
 
         QTimer.singleShot(900, grab)   # даём шрифтам и раскладке устояться
 
-    return app.exec()
+    code = app.exec()
+    # Окно уже закрыто, а работа могла идти. Рабочий поток — daemon, и выход
+    # оборвал бы его посреди экспорта или уборки: дожидаемся, пока ядро
+    # спасёт посчитанное. Окно само просит отмену при закрытии (Main.qml),
+    # здесь — страховка на случай выхода другим путём.
+    run.shutdown()
+    deps.shutdown()
+    queue.shutdown()
+    return code
 
 
 if __name__ == "__main__":
