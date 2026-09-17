@@ -33,7 +33,7 @@ def start(*, theme: str | None = None, language: str = "ru", screen: str = "main
                             RunBridge, SettingsBridge, ShellBridge)
     from app.i18n import I18n
     from core.version import VERSION
-    from app.main import QML_DIR, _load_dev_fonts
+    from app.main import QML_DIR, _load_dev_fonts, connect_bridges
 
     app = QGuiApplication(sys.argv)
     app.setApplicationVersion(VERSION)     # заголовок окна берёт версию отсюда
@@ -50,7 +50,7 @@ def start(*, theme: str | None = None, language: str = "ru", screen: str = "main
     shell = ShellBridge()
     deps = DepsBridge(env)
     i18n = I18n(language)
-    settings.changed.connect(lambda: i18n.setLanguage(settings.language))
+    connect_bridges(settings, env, run, i18n)
 
     engine = QQmlApplicationEngine()
     engine.addImportPath(str(QML_DIR))

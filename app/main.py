@@ -82,6 +82,21 @@ def _load_dev_fonts() -> None:
             QFontDatabase.addApplicationFont(str(candidate))
 
 
+def connect_bridges(settings, env, run, i18n) -> None:
+    """Кто кого будит: связи между мостами.
+
+    Отдельной функцией, потому что окно — не единственный, кто эти мосты
+    поднимает: тесты собирают их так же, и связи должны быть теми же.
+    """
+    # Язык меняют в настройках — каталог переключается следом
+    settings.changed.connect(lambda: i18n.setLanguage(settings.language))
+
+    # Работа кончилась — опрашиваем машину заново. За это время могла
+    # скачаться модель, а опрос делается по требованию: без этой строки блок
+    # «Готово к работе» продолжает звать «не скачанной» ту, что уже на диске.
+    run.finished.connect(env.refresh)
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(argv if argv is not None else sys.argv[1:])
     _claim_own_identity()
@@ -139,8 +154,7 @@ def main(argv: list[str] | None = None) -> int:
     shell = ShellBridge()
     deps = DepsBridge(env)
     i18n = I18n(ui_lang or settings.language)
-    # Язык меняют в настройках — каталог переключается следом
-    settings.changed.connect(lambda: i18n.setLanguage(settings.language))
+    connect_bridges(settings, env, run, i18n)
 
     _BRIDGES.extend([settings, env, profile, queue, run, shell, deps, i18n])
 
