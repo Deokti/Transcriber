@@ -388,7 +388,7 @@ Item {
                 x: Theme.gapPanels
                 width: parent.width - Theme.gapPanels * 2
                 elide: Text.ElideRight
-                text: [Task.model, Fmt.deviceText({"id": Task.device})].join(" · ")
+                text: [Task.model, Fmt.deviceName(Task.device)].join(" · ")
                 color: Theme.textMuted
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSmall

@@ -37,6 +37,14 @@ QtObject {
         return Env.gpuName !== "" ? Env.gpuName : I18n.strings["asr.device.gpu"]
     }
 
+    // То же устройство, но не ответом на «считать на чём»: в строке итогов
+    // оно просто называется — «medium · процессор», а не «· Процессоре».
+    function deviceName(id) {
+        if (id !== "cuda")
+            return I18n.strings["asr.device.cpuName"]
+        return Env.gpuName !== "" ? Env.gpuName : I18n.strings["asr.device.gpuName"]
+    }
+
     // Длительность словами, а не 01:12:30: в очереди важен порядок величины,
     // а не точная секунда. Секунды показываем только там, где их видно —
     // у коротких записей.

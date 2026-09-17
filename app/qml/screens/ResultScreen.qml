@@ -345,7 +345,7 @@ Item {
                 elide: Text.ElideRight
                 // Модель в строке состояния уместна, только если она работала
                 text: (Task.needsText
-                       ? [Task.model, Fmt.deviceText({"id": Task.device})]
+                       ? [Task.model, Fmt.deviceName(Task.device)]
                        : [Fmt.tr("audio." + Task.audioFormat, Task.audioFormat)]).join(" · ")
                 color: Theme.textMuted
                 font.family: Theme.fontFamily
