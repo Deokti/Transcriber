@@ -70,9 +70,20 @@ def suffix(with_cuda: bool) -> str:
     return f"{target_platform.target()}-{'cuda' if with_cuda else 'cpu'}"
 
 
+def bundle_name(with_cuda: bool) -> str:
+    """Имя самой программы.
+
+    На винде и линуксе к нему приписан вариант сборки: рядом могут лежать
+    и процессорная, и с видеокартой. На маке вариант всего один, и суффикс
+    в папке «Программы» только мешает — там просто Transcriber.app.
+    """
+    if SYSTEM == "macos":
+        return NAME
+    return f"{NAME}-{'cuda' if with_cuda else 'cpu'}"
+
+
 def build(with_cuda: bool) -> Path:
-    tag = "cuda" if with_cuda else "cpu"
-    target = f"{NAME}-{tag}"
+    target = bundle_name(with_cuda)
     print(f"\n=== сборка {target} для {SYSTEM} ===")
     shutil.rmtree(DIST / target, ignore_errors=True)
 
@@ -212,7 +223,7 @@ def installer(with_cuda: bool) -> Path | None:
     tag = "cuda" if with_cuda else "cpu"
     print(f"   собираю установщик для {tag} …")
     run([str(iscc), "/Q", f"/DAppVersion={VERSION}", f"/DVariant={tag}",
-         f"/DSourceDir={DIST / f'{NAME}-{tag}'}",
+         f"/DSourceDir={DIST / bundle_name(with_cuda)}",
          f"/DOutputName={NAME}-{VERSION}-{suffix(with_cuda)}-setup",
          str(ROOT / "tools/installer.iss")])
     return RELEASE / f"{NAME}-{VERSION}-{suffix(with_cuda)}-setup.exe"
