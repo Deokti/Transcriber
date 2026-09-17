@@ -19,7 +19,7 @@ import urllib.request
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import BinaryIO, Callable
 
 from core import platform
 from core.events import Cancelled, Code, CoreError
@@ -152,7 +152,8 @@ def _unpack(archive: Path, bin_dir: Path, kind: str) -> list[Path]:
             for member in zip_file.namelist():
                 name = member.rsplit("/", 1)[-1]
                 if name.lower() in WANTED:
-                    made.append(_write(bin_dir / name, zip_file.read(member)))
+                    with zip_file.open(member) as source:
+                        made.append(_write(bin_dir / name, source))
     elif kind == "tar.xz":
         with tarfile.open(archive, "r:xz") as tar:
             for member in tar.getmembers():
@@ -160,15 +161,18 @@ def _unpack(archive: Path, bin_dir: Path, kind: str) -> list[Path]:
                 if member.isfile() and name.lower() in WANTED:
                     source = tar.extractfile(member)
                     if source is not None:
-                        made.append(_write(bin_dir / name, source.read()))
+                        with source:
+                            made.append(_write(bin_dir / name, source))
     else:
         raise CoreError(Code.DOWNLOAD_FAILED, reason="unknown_archive", kind=kind)
 
     return made
 
 
-def _write(target: Path, data: bytes) -> Path:
-    target.write_bytes(data)
+def _write(target: Path, source: BinaryIO) -> Path:
+    # Бинарники бывают по сотне мегабайт: держать их целиком в RAM незачем.
+    with target.open("wb") as output:
+        shutil.copyfileobj(source, output, length=CHUNK)
     target.chmod(0o755)     # на маке и линуксе иначе не запустится
     return target
 

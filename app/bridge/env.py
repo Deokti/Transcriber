@@ -25,7 +25,12 @@ class EnvBridge(QObject):
         self._settings = settings
         self._data: dict = {}
         self.refresh()
-        settings.changed.connect(self.refresh)
+        settings.changed.connect(self._settings_changed)
+
+    def _settings_changed(self) -> None:
+        raw = self._settings.raw
+        if (raw.models_dir, raw.ffmpeg_dir) != self._paths_key:
+            self.refresh()
 
     @Slot()
     def refresh(self) -> None:
@@ -58,6 +63,8 @@ class EnvBridge(QObject):
             "formats": sorted(EXPORT_FORMATS),
             "audioFormats": list(AUDIO_ORDER),
         }
+        # Тема, язык и папка результатов не требуют запуска ffmpeg/nvidia-smi.
+        self._paths_key = (raw.models_dir, raw.ffmpeg_dir)
         self.changed.emit()
 
     def _get(self, key, default=None):

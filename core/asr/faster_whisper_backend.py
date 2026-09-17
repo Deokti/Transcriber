@@ -64,6 +64,9 @@ class FasterWhisperBackend:
         # раз в нём нет README, и offline отказывается его открывать вовсе.
         local = catalog.local_dir(model, self._models_dir) if self._models_dir else None
 
+        # Освобождаем прежнюю модель до выделения памяти под новую: иначе
+        # при смене настроек обе модели одновременно занимают RAM/VRAM.
+        self.unload()
         started = time.monotonic()
         try:
             self._model = WhisperModel(

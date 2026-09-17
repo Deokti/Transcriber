@@ -159,6 +159,9 @@ class JobRunner:
                 break
 
         self._drop_rest()
+        # Модель переиспользуется внутри очереди. После её завершения
+        # следующий запуск GUI всё равно создаёт новый backend.
+        self._backend.unload()
         self._state = RunnerState.IDLE
         self._event(Kind.QUEUE_DONE, None, seconds=round(time.monotonic() - started, 1),
                     **self._counts())
