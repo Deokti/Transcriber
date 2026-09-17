@@ -19,6 +19,7 @@ from pathlib import Path
 from cli import messages
 from core import platform
 from core.asr.faster_whisper_backend import FasterWhisperBackend
+from core.deps import fetch
 from core.env import models
 from core.events import Code, CoreError, Event, Kind
 from core.job import Job, JobState
@@ -74,6 +75,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--chunk-length", type=int, help="длина фрагмента, секунды")
     p.add_argument("--threads", type=int, help="потоков процессора (только для --device cpu)")
     p.add_argument("--list-models", action="store_true", help="показать каталог моделей")
+    p.add_argument("--get-ffmpeg", action="store_true",
+                   help="скачать ffmpeg в папку данных приложения")
     p.add_argument("--no-loudnorm", action="store_true", help="не выравнивать громкость")
     p.add_argument("--track", type=int, help="номер аудиодорожки")
     p.add_argument("--raw", action="store_true", help="без ffmpeg: отдать исходник как есть")
@@ -220,6 +223,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.list_models:
         _print_models()
         return 0
+    if args.get_ffmpeg:
+        return _get_ffmpeg()
     signal.signal(signal.SIGINT, _on_sigint)
 
     paths = platform.paths().ensure()
@@ -276,6 +281,44 @@ def main(argv: list[str] | None = None) -> int:
     _summary(_runner.finished, time.monotonic() - started)
     logfile.close()
     return 1 if any(j.state is JobState.FAILED for j in _runner.finished) else 0
+
+
+def _get_ffmpeg() -> int:
+    """Приносит ffmpeg туда, где программа его потом найдёт."""
+    key = platform.target()
+    try:
+        build = fetch.build_for(key)
+    except CoreError as e:
+        print(f"Для {key} сборки в каталоге нет. Поставьте ffmpeg сами и укажите папку в настройках.")
+        return 1
+
+    bin_dir = platform.paths().ensure().bin
+    print(f"Система: {key}")
+    print(f"Источник: {build.source}, {build.license}, около {build.size_mb} МБ")
+    if build.note:
+        print(f"           {build.note}")
+    print(f"Куда: {bin_dir}")
+
+    last = [0.0]
+
+    def on_progress(done: int, total: int) -> None:
+        now = time.monotonic()
+        if now - last[0] < 0.5:
+            return
+        last[0] = now
+        share = 100 * done / total if total else 0
+        print(f"\r  {share:5.1f}%  {done/1024/1024:6.1f} из {total/1024/1024:6.1f} МБ",
+              end="", flush=True)
+
+    try:
+        made = fetch.get_ffmpeg(bin_dir, key, on_progress=on_progress)
+    except CoreError as e:
+        print(f"\nНе получилось: {e.code} {e.data}")
+        return 1
+    print("\nГотово:")
+    for path in made:
+        print(f"  {path}")
+    return 0
 
 
 def _print_models() -> None:

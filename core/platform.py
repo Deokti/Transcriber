@@ -249,6 +249,23 @@ def devices() -> list[Device]:
     return [Device("cuda", True), cpu]
 
 
+def target() -> str:
+    """Система и разрядность одной строкой: windows-amd64, macos-arm64.
+
+    По этому ключу в `core/deps/catalog.json` лежит адрес сборки ffmpeg.
+    """
+    import platform as std
+
+    machine = std.machine().lower()
+    arch = {"amd64": "amd64", "x86_64": "amd64",
+            "arm64": "arm64", "aarch64": "arm64"}.get(machine, machine)
+    system = system_name()
+    if system == "macos":
+        # У маков две ветки: Apple Silicon и старые интеловские
+        return "macos-arm64" if arch == "arm64" else "macos-x86_64"
+    return f"{system}-{arch}"
+
+
 def open_file(path) -> None:
     """Открывает файл тем, чем система открывает такие файлы."""
     import subprocess

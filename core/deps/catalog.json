@@ -1,0 +1,53 @@
+{
+  "_": "Откуда берём ffmpeg. Ключ — система и разрядность, как их возвращает platform.target().",
+  "_проверено": "17.09.2026: все адреса отвечали, размеры указаны по Content-Length",
+
+  "windows-amd64": {
+    "source": "gyan.dev",
+    "license": "GPL v3",
+    "size_mb": 106,
+    "note": "сборка essentials: ffmpeg, ffprobe и нужные кодеки, без лишнего",
+    "assets": [
+      {
+        "url": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
+        "kind": "zip",
+        "sha256_url": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip.sha256"
+      }
+    ]
+  },
+
+  "macos-x86_64": {
+    "source": "evermeet.cx",
+    "license": "GPL v3",
+    "size_mb": 51,
+    "note": "два отдельных архива: ffmpeg и ffprobe качаются по одному",
+    "assets": [
+      {"api": "https://evermeet.cx/ffmpeg/info/ffmpeg/release", "kind": "zip"},
+      {"api": "https://evermeet.cx/ffmpeg/info/ffprobe/release", "kind": "zip"}
+    ]
+  },
+
+  "macos-arm64": {
+    "source": "osxexperts.net",
+    "license": "GPL v3",
+    "size_mb": 40,
+    "note": "сборки под Apple Silicon; адреса с номером версии в имени, при обновлении сайта их придётся поправить",
+    "assets": [
+      {"url": "https://www.osxexperts.net/ffmpeg711arm.zip", "kind": "zip"},
+      {"url": "https://www.osxexperts.net/ffprobe711arm.zip", "kind": "zip"}
+    ]
+  },
+
+  "linux-amd64": {
+    "source": "johnvansickle.com",
+    "license": "GPL v3",
+    "size_mb": 40,
+    "note": "статическая сборка, оба файла в одном архиве",
+    "assets": [
+      {
+        "url": "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz",
+        "kind": "tar.xz"
+      }
+    ]
+  }
+}
