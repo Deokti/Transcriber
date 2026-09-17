@@ -57,22 +57,22 @@ class FasterWhisperBackend:
 
         from faster_whisper import WhisperModel
 
-        # Модель уже на диске — в сеть не ходим. Иначе движок на каждом
-        # запуске спрашивает HuggingFace, не появилась ли новая версия: в
-        # плохой сети этот запрос висит минутами, а окно в это время молчит
-        # и выглядит зависшим. Заодно это требование NFR-2: без нужды в
-        # сеть не ходим.
-        local_only = self.downloaded(model)
+        # Скачанную модель отдаём папкой. По имени хранилища движок пошёл бы
+        # спрашивать HuggingFace, а тот в плохой сети висит минутами — окно в
+        # это время молчит и выглядит зависшим (требование NFR-2: без нужды в
+        # сеть не ходим). Хуже другое: свой слепок HuggingFace считает неполным,
+        # раз в нём нет README, и offline отказывается его открывать вовсе.
+        local = catalog.local_dir(model, self._models_dir) if self._models_dir else None
 
         started = time.monotonic()
         try:
             self._model = WhisperModel(
-                model,
+                str(local) if local else model,
                 device=device,
                 compute_type=compute,
                 cpu_threads=cpu_threads,   # 0 — на усмотрение движка
                 download_root=str(self._models_dir) if self._models_dir else None,
-                local_files_only=local_only,
+                local_files_only=local is not None,
             )
         except Exception as e:
             self._model = None

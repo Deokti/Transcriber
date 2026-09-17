@@ -50,9 +50,12 @@ def main() -> int:
             print("ОШИБКА: в пустой папке не может быть модели")
             return 1
 
-        # Так выглядит скачанная модель для ядра: своя папка с файлами движка
+        # Так выглядит скачанная модель для ядра: своя папка с файлами движка.
+        # Одного model.bin мало — по обрывку прерванной загрузки модель не
+        # откроется, и ядро такую папку моделью не считает.
         (models / MODEL).mkdir()
-        (models / MODEL / "model.bin").write_bytes(b"")
+        for part in ("model.bin", "config.json", "tokenizer.json"):
+            (models / MODEL / part).write_bytes(b"{}")
 
         stale = env.modelDownloaded(MODEL)
         print(f"файл появился, но работа ещё идёт: {stale} (ответ старый, это норма)")

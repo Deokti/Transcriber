@@ -66,8 +66,18 @@ def for_language(language: str) -> list[ModelInfo]:
     return [m for m in CATALOG if m.supports(language)]
 
 
-def is_downloaded(model_id: str, models_dir) -> bool:
-    """Лежит ли модель на диске.
+#: Без этих файлов движок модель не откроет.
+NEEDED = ("model.bin", "config.json", "tokenizer.json")
+
+
+def local_dir(model_id: str, models_dir):
+    """Папка с готовой моделью или None.
+
+    Отдаём именно папку, а не «да/нет»: её же потом получает движок. Просить
+    модель по имени хранилища нельзя — HuggingFace считает скачанным только
+    полный слепок, вместе с README и .gitattributes, а мы качаем ровно то,
+    что нужно движку. Такой слепок он называет неполным и наотрез отказывается
+    открывать без сети.
 
     Ищем и свою папку, и кеш HuggingFace — папку моделей можно указать
     на уже скачанные (решение про models_dir в настройках).
@@ -76,18 +86,40 @@ def is_downloaded(model_id: str, models_dir) -> bool:
 
     root = Path(models_dir)
     if not root.is_dir():
-        return False
-    if (root / model_id).is_dir():
-        return True
+        return None
+
+    own = root / model_id
+    if _complete(own):
+        return own
+
     needle = model_id.lower()
-    for child in root.iterdir():
+    for child in sorted(root.iterdir()):
         name = child.name.lower()
         if not child.is_dir() or not name.startswith("models--"):
             continue
         # models--Systran--faster-whisper-large-v3 -> large-v3
-        if name.endswith("--" + needle) or name.endswith("-" + needle):
-            return any(child.rglob("model.bin"))
-    return False
+        if not (name.endswith("--" + needle) or name.endswith("-" + needle)):
+            continue
+        snapshots = child / "snapshots"
+        if not snapshots.is_dir():
+            continue
+        # Слепков бывает несколько: берём свежий, он же и тот, на который
+        # указывает хранилище после последнего скачивания.
+        for snapshot in sorted((p for p in snapshots.iterdir() if p.is_dir()),
+                               key=lambda p: p.stat().st_mtime, reverse=True):
+            if _complete(snapshot):
+                return snapshot
+    return None
+
+
+def _complete(folder) -> bool:
+    """Все ли нужные движку файлы на месте."""
+    return folder.is_dir() and all((folder / name).exists() for name in NEEDED)
+
+
+def is_downloaded(model_id: str, models_dir) -> bool:
+    """Лежит ли модель на диске — целиком, а не следами прерванной загрузки."""
+    return local_dir(model_id, models_dir) is not None
 
 
 def as_data() -> list[dict]:
