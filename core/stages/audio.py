@@ -10,7 +10,6 @@
 from __future__ import annotations
 
 import shutil
-import time
 from pathlib import Path
 
 from core.context import RunContext
@@ -18,6 +17,7 @@ from core.events import Code, Kind, Stage
 from core.job import Job
 from core.media import encoding, extract_audio
 from core.profile import AUDIO_WAV16, TARGET_AUDIO
+from core.progress import Pace
 
 
 def run(job: Job, ctx: RunContext) -> None:
@@ -51,19 +51,14 @@ def _extract(job: Job, ctx: RunContext, target: Path) -> Path:
     """Второй проход ffmpeg: звук в том виде, в каком его просили."""
     profile = job.profile
     duration = job.media.duration if job.media else 0.0
-    started = time.monotonic()
-    last = {"at": -1e9}
-    step = max(profile.progress_step_min, 0.1) * 60
+    pace = Pace(step=max(profile.progress_step_min, 0.1) * 60)
 
     def on_progress(current: float, total: float) -> None:
-        if current - last["at"] < step:
+        if not pace.due(current):
             return
-        last["at"] = current
         done = current / total if total else 0.0
-        elapsed = time.monotonic() - started
-        eta = elapsed / done * (1 - done) if done > 0.02 else 0.0
         ctx.event(Kind.PROGRESS, Stage.AUDIO, done=done, position=current,
-                  total=total, eta=round(eta, 1))
+                  total=total, eta=round(pace.eta(done), 1))
 
     return extract_audio(
         ctx.tools.ffmpeg, job.source, target,

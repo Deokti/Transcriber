@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import time
-from pathlib import Path
 
 from core.context import RunContext
 from core.env import models
 from core.events import Code, CoreError, Kind, Stage
 from core.formats import segments as segments_file
 from core.job import Job
+from core.progress import Pace
 
 
 def _fetch(ctx: RunContext, profile) -> None:
@@ -18,31 +18,28 @@ def _fetch(ctx: RunContext, profile) -> None:
               model=profile.model, size_mb=entry.size_mb if entry else 0)
     ctx.event(Kind.STAGE_STARTED, Stage.DOWNLOAD, number=0, of=0)
 
-    started = time.monotonic()
-    last = {"at": 0.0}
+    pace = Pace(step=0.5)               # чаще двух раз в секунду окну не нужно
 
     def on_progress(done: int, total: int) -> None:
-        now = time.monotonic()
-        if now - last["at"] < 0.5:      # чаще двух раз в секунду окну не нужно
+        if not pace.due(pace.elapsed()):
             return
-        last["at"] = now
-        share = (done / total) if total else 0.0
-        elapsed = now - started
-        eta = elapsed / share * (1 - share) if share > 0.02 else 0.0
-        ctx.event(Kind.PROGRESS, Stage.DOWNLOAD, done=min(share, 1.0),
-                  bytes=done, total=total, eta=round(eta, 1))
+        share = min(done / total, 1.0) if total else 0.0
+        ctx.event(Kind.PROGRESS, Stage.DOWNLOAD, done=share,
+                  bytes=done, total=total, eta=round(pace.eta(share), 1))
 
     ctx.backend.download(profile.model, on_progress=on_progress,
                          should_cancel=ctx.should_cancel)
 
-    spent = round(time.monotonic() - started, 1)
+    spent = round(pace.elapsed(), 1)
     ctx.event(Kind.INFO, Stage.DOWNLOAD, Code.DOWNLOAD_DONE,
               model=profile.model, seconds=spent)
     ctx.event(Kind.STAGE_DONE, Stage.DOWNLOAD, number=0, of=0, seconds=spent)
 
 
-def run(job: Job, ctx: RunContext, audio: Path) -> None:
+def run(job: Job, ctx: RunContext) -> None:
     profile = job.profile
+    # Подготовленный звук лежит во временном WAV; без подготовки — исходник
+    audio = job.artifacts.get("temp_wav", job.source)
 
     # Английская модель под русскую запись выдаст правдоподобную
     # бессмыслицу, и человек не поймёт, почему. Лучше не начинать.
@@ -88,8 +85,7 @@ def run(job: Job, ctx: RunContext, audio: Path) -> None:
         "condition_on_previous_text": profile.condition_on_previous_text,
     }
 
-    step = max(profile.progress_step_min, 0.1) * 60
-    reported = 0.0
+    pace = Pace(step=max(profile.progress_step_min, 0.1) * 60)
     total = info.duration or (job.media.duration if job.media else 0.0)
     count = 0
 
@@ -100,14 +96,12 @@ def run(job: Job, ctx: RunContext, audio: Path) -> None:
             job.segments.append(segment)
             count += 1
 
-            if total and segment.end - reported >= step:
-                reported = segment.end
-                elapsed = time.monotonic() - started
+            if total and pace.due(segment.end):
                 done = min(segment.end / total, 1.0)
-                eta = elapsed / done * (1 - done) if done > 0.01 else 0.0
                 ctx.event(Kind.PROGRESS, Stage.TRANSCRIBE,
                           done=done, position=segment.end, total=total,
-                          elapsed=round(elapsed, 1), eta=round(eta, 1), segments=count)
+                          elapsed=round(pace.elapsed(), 1), eta=round(pace.eta(done), 1),
+                          segments=count)
 
     job.artifacts["segments"] = out
     seconds = time.monotonic() - started

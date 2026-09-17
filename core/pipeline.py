@@ -17,6 +17,19 @@ from core.media import encoding
 from core.profile import TARGET_AUDIO, TARGET_BOTH, TARGET_TEXT
 from core.stages import audio, check, cleanup, export, prepare, probe, transcribe
 
+#: Модуль каждой стадии. Порядок задаёт plan(), здесь только исполнители:
+#: у всех один вход run(job, ctx), и добавить стадию — значит добавить строку.
+#: Именно модули, а не функции: так их можно подменять в тестах.
+STAGES = {
+    Stage.PROBE: probe,
+    Stage.PREPARE: prepare,
+    Stage.AUDIO: audio,
+    Stage.TRANSCRIBE: transcribe,
+    Stage.CHECK: check,
+    Stage.EXPORT: export,
+    Stage.CLEANUP: cleanup,
+}
+
 
 def plan(profile) -> list[Stage]:
     """Список стадий для этой задачи — им же рисуется ход работы в окне.
@@ -63,44 +76,15 @@ def run_job(job: Job, ctx: RunContext) -> Job:
     try:
         _claim_name(job, ctx)
         if _already_done(job, ctx):
-            job.state = JobState.DONE
-            job.stats["skipped"] = True
             # Пропуск — тоже итог, и о нём нужно рассказать тем же событием,
             # что и об обычном конце работы. Иначе экран результата пуст:
             # ни файла, ни готового документа — как будто ничего не было.
-            ctx.emit(Event(Kind.JOB_DONE, None, None,
-                           {"name": job.source.name,
-                            "artifacts": {k: str(v) for k, v in job.artifacts.items()},
-                            **job.stats}))
-            return job
-
-        total = len(stages)
-        # Имя нарочно не «audio»: так зовётся стадия сохранения звука, и
-        # переменная её перекрывала — конвейер падал на ровном месте.
-        prepared = job.source
+            job.stats["skipped"] = True
+            return _finish(job, ctx)
 
         for number, stage in enumerate(stages, 1):
-            if stage is Stage.PROBE:
-                with _stage(ctx, stage, number, total):
-                    probe.run(job, ctx)
-            elif stage is Stage.PREPARE:
-                with _stage(ctx, stage, number, total):
-                    prepared = prepare.run(job, ctx)
-            elif stage is Stage.AUDIO:
-                with _stage(ctx, stage, number, total):
-                    audio.run(job, ctx)
-            elif stage is Stage.TRANSCRIBE:
-                with _stage(ctx, stage, number, total):
-                    transcribe.run(job, ctx, prepared)
-            elif stage is Stage.CHECK:
-                with _stage(ctx, stage, number, total):
-                    check.run(job, ctx)
-            elif stage is Stage.EXPORT:
-                with _stage(ctx, stage, number, total):
-                    export.run(job, ctx)
-            elif stage is Stage.CLEANUP:
-                with _stage(ctx, stage, number, total):
-                    cleanup.run(job, ctx)
+            with _stage(ctx, stage, number, len(stages)):
+                STAGES[stage].run(job, ctx)
 
     except Cancelled:
         job.state = JobState.CANCELLED
@@ -126,6 +110,11 @@ def run_job(job: Job, ctx: RunContext) -> Job:
         _cleanup_failed(job, ctx)
         return job
 
+    return _finish(job, ctx)
+
+
+def _finish(job: Job, ctx: RunContext) -> Job:
+    """Задача сделана: состояние, событие с артефактами и числами."""
     job.state = JobState.DONE
     ctx.emit(Event(Kind.JOB_DONE, None, None,
                    {"name": job.source.name,

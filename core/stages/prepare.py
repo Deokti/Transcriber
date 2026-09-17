@@ -1,15 +1,14 @@
 """Стадия 2: ffmpeg вытаскивает и чистит звук."""
 from __future__ import annotations
 
-import time
 from pathlib import Path
 
 from core.context import RunContext
 from core.events import Code, Kind, Stage
 from core.job import Job
-from core.media import build_filters, extract_audio
-from core.media import encoding
+from core.media import build_filters, encoding, extract_audio
 from core.profile import AUDIO_WAV16, TARGET_AUDIO
+from core.progress import Pace
 
 
 def run(job: Job, ctx: RunContext) -> Path:
@@ -30,19 +29,14 @@ def run(job: Job, ctx: RunContext) -> Path:
               filters=filters, loudnorm=job.profile.loudnorm, denoise=job.profile.denoise,
               trim_silence=job.profile.trim_silence, track=job.profile.track,
               format=audio_format)
-    step = max(job.profile.progress_step_min, 1.0) * 60
-    last = {"at": -step}
-    started = time.monotonic()
+    pace = Pace(step=max(job.profile.progress_step_min, 1.0) * 60)
 
     def on_progress(current: float, total: float) -> None:
-        if current - last["at"] < step:
+        if not pace.due(current):
             return
-        last["at"] = current
         done = current / total if total else 0.0
-        elapsed = time.monotonic() - started
-        eta = elapsed / done * (1 - done) if done > 0.02 else 0.0
         ctx.event(Kind.PROGRESS, Stage.PREPARE, done=done, position=current,
-                  total=total, eta=round(eta, 1))
+                  total=total, eta=round(pace.eta(done), 1))
 
     extract_audio(
         ctx.tools.ffmpeg, job.source, target,
@@ -60,7 +54,7 @@ def run(job: Job, ctx: RunContext) -> Path:
     job.artifacts["audio" if job.profile.target == TARGET_AUDIO else "temp_wav"] = target
     ctx.event(Kind.INFO, Stage.PREPARE, Code.AUDIO_READY,
               path=str(target), size=target.stat().st_size,
-              seconds=round(time.monotonic() - started, 1))
+              seconds=round(pace.elapsed(), 1))
     return target
 
 
