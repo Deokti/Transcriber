@@ -249,6 +249,36 @@ def devices() -> list[Device]:
     return [Device("cuda", True), cpu]
 
 
+def open_file(path) -> None:
+    """Открывает файл тем, чем система открывает такие файлы."""
+    import subprocess
+
+    target = str(path)
+    system = system_name()
+    if system == "windows":
+        os.startfile(target)                      # noqa: S606 — штатный способ Windows
+    elif system == "macos":
+        subprocess.Popen(["open", target])
+    else:
+        subprocess.Popen(["xdg-open", target])
+
+
+def reveal_file(path) -> None:
+    """Показывает файл в проводнике — выделенным, а не просто папку."""
+    import subprocess
+
+    target = Path(path)
+    system = system_name()
+    if system == "windows":
+        subprocess.Popen(["explorer", "/select,", str(target)])
+    elif system == "macos":
+        subprocess.Popen(["open", "-R", str(target)])
+    else:
+        # У линуксовых проводников общего способа выделить файл нет —
+        # открываем папку, это честнее, чем угадывать файловый менеджер.
+        subprocess.Popen(["xdg-open", str(target.parent)])
+
+
 def usable_device(device: str) -> tuple[str, str]:
     """Что из выбранного действительно доступно.
 

@@ -4,6 +4,8 @@ from app.bridge.env import EnvBridge
 from app.bridge.profile import ProfileBridge
 from app.bridge.queue import QueueBridge
 from app.bridge.run import RunBridge
+from app.bridge.shell import ShellBridge
 from app.bridge.settings import SettingsBridge
 
-__all__ = ["EnvBridge", "ProfileBridge", "QueueBridge", "RunBridge", "SettingsBridge"]
+__all__ = ["EnvBridge", "ProfileBridge", "QueueBridge", "RunBridge", "SettingsBridge",
+           "ShellBridge"]
