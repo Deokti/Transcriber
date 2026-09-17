@@ -24,6 +24,12 @@ APP_DIR = platform.bundle_dir() / "app"
 QML_DIR = APP_DIR / "qml"
 ICON_DIR = APP_DIR / "icons"
 
+#: Мосты держим здесь, а не только в main. Глобальные объекты Python
+#: убирает после локальных, поэтому движок QML разбирается первым — иначе
+#: при выходе привязки пересчитываются на уже удалённых мостах и сыплют
+#: «Cannot read property of null».
+_BRIDGES: list = []
+
 
 def _claim_own_identity() -> None:
     """Просит Windows считать нас отдельным приложением.
@@ -135,6 +141,8 @@ def main(argv: list[str] | None = None) -> int:
     i18n = I18n(ui_lang or settings.language)
     # Язык меняют в настройках — каталог переключается следом
     settings.changed.connect(lambda: i18n.setLanguage(settings.language))
+
+    _BRIDGES.extend([settings, env, profile, queue, run, shell, deps, i18n])
 
     engine = QQmlApplicationEngine()
     engine.addImportPath(str(QML_DIR))
