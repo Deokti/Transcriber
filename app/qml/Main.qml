@@ -43,7 +43,13 @@ Window {
     ProgressScreen {
         anchors.fill: parent
         visible: root.screen === "progress"
-        onDone: root.screen = "main"
+        onDone: root.screen = "result"
+    }
+
+    ResultScreen {
+        anchors.fill: parent
+        visible: root.screen === "result"
+        onAgain: root.screen = "main"
     }
 
     // Экран переключает не кнопка, а сам факт начала работы: запуск может
@@ -51,5 +57,9 @@ Window {
     Connections {
         target: Run
         function onStarted() { root.screen = "progress" }
+
+        // Человек мог уйти пить чай: пусть вернётся к результату, а не к
+        // экрану, который замер на ста процентах.
+        function onFinished() { root.screen = "result" }
     }
 }

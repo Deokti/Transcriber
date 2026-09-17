@@ -367,7 +367,7 @@ Item {
 
                 AppButton {
                     visible: !screen.working
-                    text: I18n.strings["run.toMain"]
+                    text: I18n.strings["run.toResult"]
                     primary: true
                     onClicked: screen.done()
                 }

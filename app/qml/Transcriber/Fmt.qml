@@ -121,6 +121,13 @@ QtObject {
         return text
     }
 
+    // «…\Лекции\Готовое» — человеку нужна папка, а не полный путь
+    function folderOf(path) {
+        const text = String(path || "")
+        const cut = Math.max(text.lastIndexOf("/"), text.lastIndexOf("\\"))
+        return cut > 0 ? text.substring(0, cut) : text
+    }
+
     function gigabytes(bytes) {
         return (bytes / 1024 / 1024 / 1024).toFixed(0) + " " + I18n.strings["unit.gb"]
     }

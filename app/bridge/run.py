@@ -11,6 +11,7 @@
 """
 from __future__ import annotations
 
+import time
 from dataclasses import replace
 from pathlib import Path
 
@@ -39,6 +40,10 @@ RUNNING = "running"
 DONE = "done"
 FAILED = "failed"
 CANCELLED = "cancelled"
+
+#: Коды вердикта проверки текста. Их место — в карточке файла, а не в ленте
+#: сообщений: это итог работы, а не замечание по ходу.
+VERDICTS = (Code.QUALITY_CLEAN, Code.QUALITY_MINOR, Code.QUALITY_STUCK)
 
 #: Сколько сообщений держим на экране. Журнал целиком пишется в файл ядром.
 NOTICE_LIMIT = 40
@@ -87,6 +92,7 @@ class RunBridge(QObject):
         self._bytes = 0.0
         self._bytesTotal = 0.0
         self._nested = ""
+        self._card: dict = {}
         self._summary: dict = {}
         self._failure: dict = {}
 
@@ -251,6 +257,7 @@ class RunBridge(QObject):
 
         if kind is Kind.JOB_STARTED:
             self._index += 1
+            self._card = {"started": time.monotonic()}
             if 0 <= self._index < len(self._files):
                 self._files[self._index]["state"] = RUNNING
             planned = [s for s in data.get("stages", []) if s in VISIBLE_STAGES]
@@ -309,6 +316,32 @@ class RunBridge(QObject):
                 self._percent = 0.0
                 self._has_percent = False
 
+        elif kind is Kind.INFO and code == Code.SOURCE_INFO:
+            self._card["duration"] = float(data.get("duration", 0.0))
+            self._card["video"] = bool(data.get("has_video"))
+
+        elif kind is Kind.INFO and code == Code.AUDIO_SAVED:
+            # Имя нарочно не «audio»: так в статистике зовётся длительность
+            # звука, и карточка результата принимала число за файл.
+            self._card["audioFile"] = {"path": str(data.get("path", "")),
+                                       "size": float(data.get("size", 0.0)),
+                                       "format": str(data.get("format", ""))}
+
+        elif kind is Kind.INFO and code == Code.PARTIAL_SAVED:
+            # Приходит уже после «файл прерван»: ядро сначала сообщает об
+            # обрыве, потом спокойно досохраняет посчитанное. Значит правим
+            # ту карточку, которая только что закрылась.
+            if self._results:
+                saved = _plain(data)
+                self._results[-1]["partial"] = True
+                self._results[-1]["artifacts"] = saved.get("artifacts", {})
+                self._results[-1]["segments"] = saved.get("segments", 0)
+                self._results[-1]["position"] = saved.get("position", 0.0)
+
+        elif code in VERDICTS:
+            self._card["verdict"] = code
+            self._card["places"] = len(data.get("bad_runs", []))
+
         elif kind is Kind.JOB_DONE:
             self._loading = ""
             self._finish_file(DONE, "", data)
@@ -361,8 +394,13 @@ class RunBridge(QObject):
         for item in self._stages:
             if item["state"] == RUNNING and state != DONE:
                 item["state"] = state
+        card = dict(self._card)
+        started = card.pop("started", None)
+        if started is not None:
+            card["spent"] = round(time.monotonic() - started, 1)
         self._results.append({"name": current["name"], "path": current["path"],
-                              "state": state, "code": code, **_plain(data)})
+                              "state": state, "code": code, **_plain(data), **card})
+        self._card = {}
 
     def _notice(self, kind: Kind, code: str | None, data: dict,
                 stage: Stage | None = None) -> None:
