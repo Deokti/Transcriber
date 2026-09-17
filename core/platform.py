@@ -31,6 +31,21 @@ def system_name() -> str:
     return "linux"
 
 
+def quiet_child() -> dict:
+    """Ключи запуска, при которых у дочернего процесса нет своего окна.
+
+    Нужно только на Windows и только в собранной программе: консоли у неё
+    нет, поэтому каждый вызов ffmpeg открывает рядом с окном чёрный
+    прямоугольник. Держим здесь, а не по месту вызова: разница между
+    системами живёт в одном модуле (принцип П-5).
+    """
+    if system_name() != "windows":
+        return {}
+    import subprocess
+
+    return {"creationflags": subprocess.CREATE_NO_WINDOW}
+
+
 def is_packed() -> bool:
     """Собранная программа, а не запуск из исходников."""
     return bool(getattr(sys, "frozen", False))
@@ -236,8 +251,7 @@ def gpu_name() -> str:
     try:
         result = subprocess.run(
             ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
-            capture_output=True, text=True, timeout=5,
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            capture_output=True, text=True, timeout=5, **quiet_child())
     except (OSError, subprocess.SubprocessError):
         return ""
     return result.stdout.strip().splitlines()[0].strip() if result.returncode == 0 else ""

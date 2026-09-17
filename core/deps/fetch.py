@@ -180,6 +180,7 @@ def _verify(files: list[Path]) -> None:
             continue
         try:
             result = subprocess.run([str(path), "-version"], capture_output=True,
+                                    **platform.quiet_child(),
                                     text=True, timeout=30)
         except OSError as e:
             raise CoreError(Code.DOWNLOAD_FAILED, reason="not_runnable",

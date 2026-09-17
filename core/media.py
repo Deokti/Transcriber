@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from core import platform
 from core.events import Cancelled, Code, CoreError
 from core.profile import AUDIO_M4A, AUDIO_MP3, AUDIO_WAV16, AUDIO_WAV48
 
@@ -114,7 +115,8 @@ def version(ffmpeg: Path) -> str:
     """Версия ffmpeg одной строкой, например «7.0». Пусто — не разобрали."""
     try:
         result = subprocess.run([str(ffmpeg), "-version"], capture_output=True,
-                                text=True, encoding="utf-8", errors="replace", timeout=5)
+                                text=True, encoding="utf-8", errors="replace", timeout=5,
+                                **platform.quiet_child())
     except (OSError, subprocess.SubprocessError):
         return ""
     if result.returncode != 0 or not result.stdout:
@@ -133,7 +135,7 @@ def probe(ffprobe: Path, path: Path) -> MediaInfo:
     cmd = [str(ffprobe), "-v", "error", "-print_format", "json",
            "-show_format", "-show_streams", str(path)]
     r = subprocess.run(cmd, capture_output=True, text=True,
-                       encoding="utf-8", errors="replace")
+                       encoding="utf-8", errors="replace", **platform.quiet_child())
     if r.returncode != 0:
         raise CoreError(Code.FFPROBE_FAILED, path=str(path), stderr=r.stderr.strip()[:300])
 
@@ -223,7 +225,8 @@ def extract_audio(
     cmd += ["-progress", "pipe:1", "-nostats", str(dst)]
 
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                            text=True, encoding="utf-8", errors="replace", bufsize=1)
+                            text=True, encoding="utf-8", errors="replace", bufsize=1,
+                            **platform.quiet_child())
     cancelled = False
     try:
         for line in proc.stdout:
