@@ -242,7 +242,16 @@ def pack_dmg(folder: Path, base: str) -> Path:
 
 
 def installer(with_cuda: bool) -> Path | None:
-    """Установщик там, где он вообще бывает отдельным файлом."""
+    """Установщик там, где он вообще бывает отдельным файлом.
+
+    На винде он один и собирается из сборки с видеокартой: на машине без
+    NVIDIA она просто не находит карту и считает на процессоре. Процессорная
+    сборка остаётся лёгким архивом для тех, кому важен вес, — гонять человека
+    по вариантам ради полутора гигабайт не стоит.
+    """
+    if SYSTEM == "windows" and not with_cuda:
+        print("   установщик собираем из сборки с CUDA — процессорная уезжает архивом")
+        return None
     if SYSTEM == "macos":
         print("   на маке установщик — это сам .dmg")
         return None
@@ -258,13 +267,14 @@ def installer(with_cuda: bool) -> Path | None:
         print("   [!] Inno Setup не найден — установщик пропускаем")
         return None
 
-    tag = "cuda" if with_cuda else "cpu"
-    print(f"   собираю установщик для {tag} …")
-    run([str(iscc), "/Q", f"/DAppVersion={VERSION}", f"/DVariant={tag}",
-         f"/DSourceDir={DIST / bundle_name(with_cuda)}",
-         f"/DOutputName={NAME}-{VERSION}-{suffix(with_cuda)}-setup",
+    # В имени файла варианта нет: установщик один на всех
+    name = f"{NAME}-{VERSION}-{target_platform.target()}-setup"
+    print(f"   собираю {name}.exe …")
+    run([str(iscc), "/Q", f"/DAppVersion={VERSION}", "/DVariant=cuda",
+         f"/DSourceDir={DIST / bundle_name(True)}",
+         f"/DOutputName={name}",
          str(ROOT / "tools/installer.iss")])
-    return RELEASE / f"{NAME}-{VERSION}-{suffix(with_cuda)}-setup.exe"
+    return RELEASE / f"{name}.exe"
 
 
 def sums() -> Path:
