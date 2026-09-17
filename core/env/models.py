@@ -202,19 +202,14 @@ def download(model_id: str, models_dir, *, on_progress=None, should_cancel=None)
     куска, с которого можно продолжить. Для полутора гигабайт это
     обидно, и докачка — задача этапа M4 вместе со своим загрузчиком.
     """
-    import os
     from pathlib import Path
 
+    # Xet отключён в core/env/__init__.py — до импорта, позже не считается
     import huggingface_hub
 
     entry = get(model_id)
     expected = int((entry.size_mb if entry else 0) * 1024 * 1024)
 
-    # Новая схема хранения HuggingFace качает в своих потоках, и отмена до
-    # них не доходит: закачка идёт дальше, как будто её не просили встать.
-    # Старый путь встаёт честно — поэтому просим именно его.
-    previous = os.environ.get("HF_HUB_DISABLE_XET")
-    os.environ["HF_HUB_DISABLE_XET"] = "1"
     try:
         return huggingface_hub.snapshot_download(
             repo(model_id),
@@ -230,11 +225,6 @@ def download(model_id: str, models_dir, *, on_progress=None, should_cancel=None)
         if _cancelled_inside(e):
             raise Cancelled(stage="download") from e
         raise CoreError(Code.DOWNLOAD_FAILED, model=model_id, reason=repr(e)) from e
-    finally:
-        if previous is None:
-            os.environ.pop("HF_HUB_DISABLE_XET", None)
-        else:
-            os.environ["HF_HUB_DISABLE_XET"] = previous
 
 
 def _cancelled_inside(error: BaseException) -> bool:
