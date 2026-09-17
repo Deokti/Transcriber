@@ -78,6 +78,7 @@ def run(job: Job, ctx: RunContext, audio: Path) -> None:
     out = job.output(segments_file.SUFFIX)
     meta = {
         "source": job.source.name,
+        "source_path": str(job.source),
         "language": info.language,
         "duration": info.duration,
         "model": profile.model,

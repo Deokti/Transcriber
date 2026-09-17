@@ -75,7 +75,9 @@ def _destination(job: Job, ctx: RunContext) -> Path:
     заканчивался словами «готово» над пустой папкой.
     """
     if job.profile.target != TARGET_AUDIO:
-        return ctx.paths.temp / f"{job.stem}_16k.wav"
+        # Метка пути в имени: одноимённые записи из разных папок — и два
+        # экземпляра программы разом — не должны писать в один файл.
+        return ctx.paths.temp / f"{job.stem}-{job.fingerprint}_16k.wav"
 
     job.output_dir.mkdir(parents=True, exist_ok=True)
     return job.beside(encoding(job.profile.audio_format).suffix)

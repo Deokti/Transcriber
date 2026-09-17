@@ -152,6 +152,7 @@
   "notice.DEVICE_FALLBACK": "The graphics card is unavailable (%1). Running on the processor — noticeably slower.",
   "notice.TRACK_FALLBACK": "There is no track %1 in the file, taking the first one.",
   "notice.OUTPUT_EXISTS": "%1 has already been transcribed: the document is there, skipping the file.",
+  "notice.OUTPUT_RENAMED": "The name is taken by another recording; the document for %1 will be called \"%2\".",
   "notice.QUALITY_MINOR": "Minor repeats: %1. Usually harmless.",
   "notice.QUALITY_STUCK": "Found stuck passages: %1. This usually happens on music, applause or long silence.",
   "notice.GAPS_FOUND": "Gaps longer than two minutes: %1.",

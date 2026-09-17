@@ -84,6 +84,7 @@ class Code:
 
     # выдача и уборка
     OUTPUT_EXISTS = "OUTPUT_EXISTS"
+    OUTPUT_RENAMED = "OUTPUT_RENAMED"          # имя занято чужим файлом, взяли другое
     EXPORT_DONE = "EXPORT_DONE"
     TEMP_KEPT = "TEMP_KEPT"
     TEMP_DELETED = "TEMP_DELETED"

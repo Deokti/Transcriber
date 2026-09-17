@@ -109,6 +109,8 @@ QtObject {
             return text.arg(data.asked)
         case "OUTPUT_EXISTS":
             return text.arg(data.name || "")
+        case "OUTPUT_RENAMED":
+            return text.arg(data.name || "").arg(data.stem || "")
         case "QUALITY_MINOR":
         case "QUALITY_STUCK":
             return text.arg((data.bad_runs || []).length)

@@ -1,6 +1,7 @@
 """Job — одна задача: файл, настройки, состояние, созданные артефакты."""
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -35,10 +36,17 @@ class Job:
     stats: dict = field(default_factory=dict)
     error_code: str | None = None
     error_data: dict = field(default_factory=dict)
+    #: Имя результата, когда исходное занято чужим файлом (см. pipeline)
+    alias: str | None = None
 
     @property
     def stem(self) -> str:
-        return self.source.stem
+        return self.alias or self.source.stem
+
+    @property
+    def fingerprint(self) -> str:
+        """Короткая метка пути: два «Урок 1.mp4» из разных папок различимы."""
+        return hashlib.sha1(str(self.source.resolve()).encode("utf-8")).hexdigest()[:8]
 
     @property
     def output_dir(self) -> Path:

@@ -61,6 +61,7 @@ def run_job(job: Job, ctx: RunContext) -> Job:
               stages=[s.value for s in stages], target=job.profile.target)
 
     try:
+        _claim_name(job, ctx)
         if _already_done(job, ctx):
             job.state = JobState.DONE
             job.stats["skipped"] = True
@@ -168,6 +169,28 @@ def _save_partial(job: Job, ctx: RunContext) -> None:
         except Exception as e:
             safe.event(Kind.WARNING, None, Code.UNEXPECTED, reason=repr(e))
     _cleanup_failed(job, safe)
+
+
+def _claim_name(job: Job, ctx: RunContext) -> None:
+    """Даёт результату имя, которое не занято чужим файлом.
+
+    Рядом с исходником одно имя — один файл, спорить не с кем. Но в общей
+    папке результата два «Урок 1.mp4» из разных курсов делили бы один
+    документ: второй молча пропускался бы как готовый или затирал первый.
+    Чей файл — записано в заголовке сегментов; чужой — берём имя с папкой.
+    """
+    if not job.profile.output_dir:
+        return
+    for attempt in range(1, 100):
+        owner = segments_file.meta(job.output(segments_file.SUFFIX)).get("source_path")
+        if owner is None or owner == str(job.source):
+            break
+        folder = job.source.parent.name or "2"
+        job.alias = (f"{job.source.stem} ({folder})" if attempt == 1
+                     else f"{job.source.stem} ({folder} {attempt})")
+    if job.alias:
+        ctx.event(Kind.INFO, None, Code.OUTPUT_RENAMED,
+                  name=job.source.name, stem=job.stem)
 
 
 def _already_done(job: Job, ctx: RunContext) -> bool:
