@@ -17,6 +17,7 @@ from PySide6.QtQuickControls2 import QQuickStyle
 from app.bridge import (DepsBridge, EnvBridge, ProfileBridge, QueueBridge,
                         RunBridge, SettingsBridge, ShellBridge)
 from app.i18n import I18n
+from core.version import VERSION
 
 HERE = Path(__file__).resolve().parent
 QML_DIR = HERE / "qml"
@@ -112,6 +113,7 @@ def main(argv: list[str] | None = None) -> int:
 
     app = QGuiApplication(sys.argv[:1] + argv)
     app.setApplicationName("Transcriber")
+    app.setApplicationVersion(VERSION)
     app.setOrganizationName("Transcriber")
     app.setWindowIcon(_app_icon())
 

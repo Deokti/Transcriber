@@ -77,8 +77,11 @@ Item {
 
                 Item { Layout.fillWidth: true }
 
-                AppButton { text: I18n.strings["nav.storage"]; flat_: true }
-                AppButton { text: I18n.strings["nav.diagnostics"]; flat_: true }
+                // Экраны «Хранилище» и «Диагностика» ещё не написаны — кнопки
+                // вернутся вместе с ними (M4). Кнопка, ведущая в никуда,
+                // хуже её отсутствия.
+                // AppButton { text: I18n.strings["nav.storage"]; flat_: true }
+                // AppButton { text: I18n.strings["nav.diagnostics"]; flat_: true }
             }
         }
 

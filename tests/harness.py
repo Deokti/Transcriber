@@ -32,9 +32,11 @@ def start(*, theme: str | None = None, language: str = "ru", screen: str = "main
     from app.bridge import (DepsBridge, EnvBridge, ProfileBridge, QueueBridge,
                             RunBridge, SettingsBridge, ShellBridge)
     from app.i18n import I18n
+    from core.version import VERSION
     from app.main import QML_DIR, _load_dev_fonts
 
     app = QGuiApplication(sys.argv)
+    app.setApplicationVersion(VERSION)     # заголовок окна берёт версию отсюда
     _load_dev_fonts()          # без экрана у Qt пустой список шрифтов
     QQuickStyle.setStyle("Basic")
 

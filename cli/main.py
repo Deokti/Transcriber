@@ -30,6 +30,7 @@ from core.profile import (AUDIO_M4A, AUDIO_MP3, AUDIO_WAV16, AUDIO_WAV48,
                           LAYOUT_PLAIN, LAYOUT_TIMECODES, TARGET_AUDIO, TARGET_BOTH, TARGET_TEXT,
                           TEMP_DELETE, TEMP_KEEP, TEMP_MOVE, Profile)
 from core.timecode import hms
+from core.version import VERSION
 
 _runner: "JobRunner | None" = None
 _presses = 0
@@ -74,6 +75,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                    help="чувствительность к речи: выше — больше тихой речи в тексте")
     p.add_argument("--chunk-length", type=int, help="длина фрагмента, секунды")
     p.add_argument("--threads", type=int, help="потоков процессора (только для --device cpu)")
+    p.add_argument("--version", action="version", version=f"Transcriber {VERSION}")
     p.add_argument("--list-models", action="store_true", help="показать каталог моделей")
     p.add_argument("--get-ffmpeg", action="store_true",
                    help="скачать ffmpeg в папку данных приложения")

@@ -15,7 +15,7 @@ Window {
     minimumWidth: Theme.minWidth
     minimumHeight: Theme.minHeight
     visible: true
-    title: "Transcriber"
+    title: "Transcriber " + Qt.application.version
     color: Theme.windowBg
 
     // Тема приходит из настроек: там же живёт вариант «как в системе».
