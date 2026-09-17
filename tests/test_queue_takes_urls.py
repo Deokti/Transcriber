@@ -44,7 +44,7 @@ def _clean(folder: Path) -> None:
 
 
 def main() -> int:
-    app = QGuiApplication(sys.argv)          # мостам нужен живой QGuiApplication
+    _app = QGuiApplication(sys.argv)         # мостам нужен живой QGuiApplication
     folder = Path(tempfile.mkdtemp(prefix="transcriber-test-"))
     source = folder / NAME
     source.write_bytes(b"not really audio")   # разбор провалится, и это не мешает

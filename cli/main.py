@@ -290,7 +290,7 @@ def _get_ffmpeg() -> int:
     key = platform.target()
     try:
         build = fetch.build_for(key)
-    except CoreError as e:
+    except CoreError:
         print(f"Для {key} сборки в каталоге нет. Поставьте ffmpeg сами и укажите папку в настройках.")
         return 1
 

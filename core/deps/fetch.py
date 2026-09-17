@@ -81,9 +81,11 @@ def get_ffmpeg(bin_dir, key: str, *, on_progress: Progress | None = None,
             url = _resolve(asset)
             archive = temp / url.split("/")[-1].split("?")[0]
 
-            def report(done: int, total: int) -> None:
+            def report(done: int, total: int, base: int = done_before) -> None:
+                # base — сколько скачано прошлыми архивами; закрепляем сразу,
+                # а не ловим переменную цикла в момент вызова
                 if on_progress:
-                    on_progress(done_before + done, max(done_before + total, total_hint))
+                    on_progress(base + done, max(base + total, total_hint))
 
             _download(url, archive, report, should_cancel)
             if asset.get("sha256_url"):

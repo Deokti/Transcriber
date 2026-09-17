@@ -184,7 +184,7 @@ class Resources(unittest.TestCase):
                     job = Job(self.root / "source.wav", Profile(temp_action=policy))
                     temp = self.paths.temp / "prepared.wav"
 
-                    def prepare(job, ctx):
+                    def prepare(job, ctx, temp=temp):
                         temp.write_bytes(b"temporary audio")
                         job.artifacts["temp_wav"] = temp
                         return temp

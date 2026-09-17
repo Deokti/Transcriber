@@ -18,7 +18,6 @@ import harness   # ставит корень проекта в путь импо
 
 from core import platform
 from core.context import RunContext
-from core.events import Event
 from core.job import Job, JobState
 from core.media import ensure_tools
 from core.pipeline import run_job
