@@ -139,7 +139,10 @@ def _save_partial(job: Job, ctx: RunContext) -> None:
             export.run(job, safe)
             safe.event(Kind.INFO, None, Code.PARTIAL_SAVED,
                        segments=len(job.segments),
-                       position=job.segments[-1].end, total=total)
+                       position=job.segments[-1].end, total=total,
+                       # Что именно спасли: без этого окно знает, что «часть
+                       # сохранена», но не знает, где она лежит.
+                       artifacts={k: str(v) for k, v in job.artifacts.items()})
         except Exception as e:
             safe.event(Kind.WARNING, None, Code.UNEXPECTED, reason=repr(e))
     try:
