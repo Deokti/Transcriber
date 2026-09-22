@@ -138,6 +138,15 @@ class ProfileBridge(QObject):
         self._set("output_dir", clean(value))
 
     # --- дополнительно --------------------------------------------------
+    @Property(bool, notify=changed)
+    def force(self) -> bool:
+        """Считать заново, даже если документ уже готов (FR-38)."""
+        return self._profile.force
+
+    @Slot(bool)
+    def setForce(self, value: bool) -> None:
+        self._set("force", value)
+
     @Property(str, notify=changed)
     def tempAction(self) -> str:
         return self._profile.temp_action
