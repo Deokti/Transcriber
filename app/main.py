@@ -8,7 +8,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QSize, QTimer, QUrl
+from PySide6.QtCore import QFileSystemWatcher, QSize, QTimer, QUrl
 from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
@@ -100,6 +100,60 @@ def _load_dev_fonts() -> None:
             QFontDatabase.addApplicationFont(str(candidate))
 
 
+def _watch_qml(engine: QQmlApplicationEngine, show) -> QFileSystemWatcher:
+    """Перечитывает окно, когда меняется разметка. Только для разработки.
+
+    Выигрыш не в секундах запуска, а в том, что переживает перезагрузку:
+    мосты остаются теми же. Очередь файлов, опрошенное окружение, настройки
+    — всё на месте, и после правки разметки не нужно заново набирать файлы.
+
+    Возвращаем наблюдателя, чтобы его подержали за руку: без ссылки Python
+    уберёт его, и слежка молча прекратится.
+    """
+    watcher = QFileSystemWatcher()
+
+    def follow() -> None:
+        # Следим и за папками, и за файлами: редакторы сохраняют заменой,
+        # и файл под старым именем исчезает вместе со слежкой за ним.
+        folders = {str(p) for p in QML_DIR.rglob("*") if p.is_dir()} | {str(QML_DIR)}
+        files = {str(p) for p in QML_DIR.rglob("*.qml")} | {str(p) for p in QML_DIR.rglob("qmldir")}
+        known = set(watcher.directories()) | set(watcher.files())
+        fresh = list((folders | files) - known)
+        if fresh:
+            watcher.addPaths(fresh)
+
+    def reload() -> None:
+        follow()
+        previous = list(engine.rootObjects())
+        # Запоминаем, на каком экране сидели: править ProgressScreen и каждый
+        # раз возвращаться на главный — то ещё удовольствие.
+        screen = str(previous[0].property("screen") or "") if previous else ""
+
+        # Новое окно поднимаем раньше, чем убираем старое. Опечатка в разметке
+        # — обычное дело посреди правки, и остаться совсем без окон нельзя:
+        # Qt считает это концом работы и закрывает приложение.
+        engine.clearComponentCache()
+        show(screen)
+        fresh = [obj for obj in engine.rootObjects() if obj not in previous]
+        if not fresh:
+            print("[watch] разметка не читается — оставляю прежнее окно", flush=True)
+            return
+        for old in previous:
+            old.close()
+            old.deleteLater()
+        print(f"[watch] перечитал разметку, экран «{screen or 'main'}»", flush=True)
+
+    pending = QTimer()
+    pending.setSingleShot(True)
+    pending.setInterval(120)     # редакторы пишут файл в два приёма
+    pending.timeout.connect(reload)
+    watcher.directoryChanged.connect(lambda _p: pending.start())
+    watcher.fileChanged.connect(lambda _p: pending.start())
+    follow()
+    print(f"[watch] слежу за {QML_DIR}: правь разметку, окно перечитает само", flush=True)
+    return watcher
+
+
 def connect_bridges(settings, env, run, i18n) -> None:
     """Кто кого будит: связи между мостами.
 
@@ -145,6 +199,10 @@ def main(argv: list[str] | None = None) -> int:
         start_screen = argv[index + 1]
         del argv[index:index + 2]
 
+    watch = "--watch" in argv
+    if watch:
+        argv.remove("--watch")
+
     shot: str | None = None
     if "--shot" in argv:
         index = argv.index("--shot")
@@ -188,11 +246,18 @@ def main(argv: list[str] | None = None) -> int:
     context.setContextProperty("Run", run)
     context.setContextProperty("Shell", shell)
     context.setContextProperty("Deps", deps)
-    if start_screen:
-        engine.setInitialProperties({"screen": start_screen})
-    engine.load(QUrl.fromLocalFile(str(QML_DIR / "Main.qml")))
+    def show(screen: str = "") -> None:
+        screen = screen or start_screen
+        if screen:
+            engine.setInitialProperties({"screen": screen})
+        engine.load(QUrl.fromLocalFile(str(QML_DIR / "Main.qml")))
+
+    show()
     if not engine.rootObjects():
         return 1
+
+    watcher = _watch_qml(engine, show) if watch else None
+    _BRIDGES.append(watcher)      # без ссылки слежка молча прекратится
 
     if shot:
         window = engine.rootObjects()[0]
