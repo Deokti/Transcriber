@@ -22,6 +22,10 @@ for stream in (sys.stdout, sys.stderr):
         stream.reconfigure(encoding="utf-8", errors="replace")
 
 
+#: Мосты последнего запуска — для тестов, которым мало окна (см. start).
+bridges: dict = {}
+
+
 def start(*, theme: str | None = None, language: str = "ru", screen: str = "main"):
     """Поднимает окно и возвращает (приложение, окно, настройки, переводы)."""
     from PySide6.QtCore import QUrl
@@ -72,6 +76,12 @@ def start(*, theme: str | None = None, language: str = "ru", screen: str = "main
     window = engine.rootObjects()[0]
     # Держим от сборщика мусора: без ссылок окно исчезнет вместе с ними.
     window._keep = (engine, env, task, queue, run, shell, deps)
+
+    # Мосты кладём сюда: тесту, который дёргает окно, нужно потом спросить
+    # ядро — что из этого доехало. Возвращаемая четвёрка не меняется, её
+    # разбирают все прежние тесты.
+    bridges.update(settings=settings, env=env, task=task, queue=queue,
+                   run=run, shell=shell, deps=deps, i18n=i18n)
     return app, window, settings, i18n
 
 
