@@ -24,9 +24,8 @@ def reason(packed: bool) -> str:
     platform.system_name = lambda: "windows"                # мак отвечает раньше
     if packed:
         sys.frozen = True
-    else:
-        if hasattr(sys, "frozen"):
-            del sys.frozen
+    elif hasattr(sys, "frozen"):
+        del sys.frozen
     gpu = next(d for d in platform.devices() if d.id == "cuda")
     return gpu.reason or ""
 

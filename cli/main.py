@@ -27,7 +27,7 @@ from core.media import MEDIA_EXT, ensure_tools
 from core.runner import JobRunner
 from core.settings import Settings
 from core.profile import (AUDIO_M4A, AUDIO_MP3, AUDIO_WAV16, AUDIO_WAV48,
-                          LAYOUT_PLAIN, LAYOUT_TIMECODES, TARGET_AUDIO, TARGET_BOTH, TARGET_TEXT,
+                          LAYOUT_PLAIN, LAYOUT_TIMECODES, TARGET_AUDIO, TARGET_BOTH,
                           TEMP_DELETE, TEMP_KEEP, TEMP_MOVE, Profile)
 from core.timecode import hms
 from core.version import VERSION
@@ -82,7 +82,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--no-loudnorm", action="store_true", help="не выравнивать громкость")
     p.add_argument("--track", type=int, help="номер аудиодорожки")
     p.add_argument("--raw", action="store_true", help="без ffmpeg: отдать исходник как есть")
-    p.add_argument("--audio-only", action="store_true", help="только вытащить звук, не распознавать")
+    p.add_argument("--audio-only", action="store_true",
+                   help="только вытащить звук, не распознавать")
     p.add_argument("--with-audio", action="store_true",
                    help="сохранить звуковой файл вместе с документом")
     p.add_argument("--audio-format", choices=[AUDIO_WAV16, AUDIO_WAV48, AUDIO_MP3, AUDIO_M4A],
@@ -291,7 +292,8 @@ def _get_ffmpeg() -> int:
     try:
         build = fetch.build_for(key)
     except CoreError:
-        print(f"Для {key} сборки в каталоге нет. Поставьте ffmpeg сами и укажите папку в настройках.")
+        print(f"Для {key} сборки в каталоге нет. "
+              "Поставьте ffmpeg сами и укажите папку в настройках.")
         return 1
 
     bin_dir = platform.paths().ensure().bin
@@ -341,7 +343,8 @@ def _summary(jobs: list[Job], seconds: float) -> None:
         if job.state is JobState.DONE and stats.get("segments"):
             verdict = messages.VERDICTS.get(stats.get("verdict"), "?")
             print(f"{job.source.name[:36]:<36} {hms(stats.get('audio', 0)):>9} "
-                  f"{stats.get('seconds', 0)/60:>6.1f}м {stats.get('segments', 0):>6} сегм.  {verdict}")
+                  f"{stats.get('seconds', 0)/60:>6.1f}м "
+                  f"{stats.get('segments', 0):>6} сегм.  {verdict}")
         else:
             note = {JobState.FAILED: job.error_code, JobState.CANCELLED: "прервано"}.get(
                 job.state, "пропущено" if stats.get("skipped") else job.state.value)

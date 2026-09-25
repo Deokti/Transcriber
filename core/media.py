@@ -21,8 +21,10 @@ from core import platform
 from core.events import Cancelled, Code, CoreError
 from core.profile import AUDIO_M4A, AUDIO_MP3, AUDIO_WAV16, AUDIO_WAV48
 
-VIDEO_EXT = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".ts", ".mpg", ".mpeg", ".wmv", ".flv", ".m4v"}
-AUDIO_EXT = {".m4a", ".mp3", ".wav", ".ogg", ".opus", ".flac", ".aac", ".wma", ".m4b", ".amr", ".aiff"}
+VIDEO_EXT = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".ts",
+             ".mpg", ".mpeg", ".wmv", ".flv", ".m4v"}
+AUDIO_EXT = {".m4a", ".mp3", ".wav", ".ogg", ".opus", ".flac",
+             ".aac", ".wma", ".m4b", ".amr", ".aiff"}
 MEDIA_EXT = VIDEO_EXT | AUDIO_EXT
 
 PROBE_TIMEOUT = 30
@@ -164,7 +166,8 @@ def probe(ffprobe: Path, path: Path) -> MediaInfo:
                 title=tags.get("title", ""),
                 default=bool((s.get("disposition") or {}).get("default")),
             ))
-        elif s.get("codec_type") == "video" and (s.get("disposition") or {}).get("attached_pic") != 1:
+        elif (s.get("codec_type") == "video"
+              and (s.get("disposition") or {}).get("attached_pic") != 1):
             video.append(s.get("codec_name") or "?")
 
     fmt = data.get("format") or {}
@@ -264,7 +267,7 @@ def speech_bounds(ffmpeg: Path, src: Path, *, track: int = 0, duration: float = 
 
 def _after(line: str, marker: str) -> float | None:
     try:
-        return float(line.split(marker, 1)[1].split("|")[0].strip())
+        return float(line.split(marker, 1)[1].split("|", 1)[0].strip())
     except (IndexError, ValueError):
         return None
 

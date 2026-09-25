@@ -94,8 +94,8 @@ def mark_partial(path: Path) -> None:
 def _rows(path: Path) -> Iterator[dict]:
     """Строки файла одна за другой. Битую последнюю после обрыва пропускает."""
     with path.open(encoding="utf-8") as file:
-        for line in file:
-            line = line.strip()
+        for raw in file:
+            line = raw.strip()
             if not line:
                 continue
             try:

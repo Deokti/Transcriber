@@ -12,8 +12,8 @@ POPULAR = ("ru", "en", "uk", "de", "fr", "es", "it", "pl", "pt", "tr",
            "zh", "ja", "ko", "ar", "kk")
 
 #: Запасной список, если движок почему-то не отдал свой.
-_FALLBACK = POPULAR + ("be", "cs", "nl", "sv", "fi", "he", "hi", "hu", "id",
-                       "ro", "sr", "sk", "th", "vi")
+_FALLBACK = (*POPULAR, "be", "cs", "nl", "sv", "fi", "he", "hi", "hu", "id",
+             "ro", "sr", "sk", "th", "vi")
 
 
 def codes() -> list[str]:

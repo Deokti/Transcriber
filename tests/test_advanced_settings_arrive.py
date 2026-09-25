@@ -67,7 +67,7 @@ def check() -> None:
     before = task.snapshot()
     problems = []
 
-    for label, chosen, name, expected in CHOICES:
+    for label, chosen, *_ in CHOICES:
         item = by_label(label)
         if item is None:
             problems.append(f"{i18n.strings[label]}: поля нет в окне")

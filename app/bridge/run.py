@@ -275,7 +275,7 @@ class RunBridge(QObject):
             self._stage = stage.value
             if stage.value == DOWNLOAD:
                 if not self._has_stage(DOWNLOAD):
-                    self._stages = [{"code": DOWNLOAD, "state": WAITING}] + self._stages
+                    self._stages = [{"code": DOWNLOAD, "state": WAITING}, *self._stages]
                 # Скачивание случается внутри распознавания. Две горящие
                 # строки разом читаются как «делаю два дела сразу», поэтому
                 # объемлющую стадию возвращаем в ожидание.
@@ -410,7 +410,7 @@ class RunBridge(QObject):
                 stage: Stage | None = None) -> None:
         if code is None:
             return
-        self._notices = (self._notices + [{
+        self._notices = ([*self._notices, {
             "kind": kind.value,
             "code": code,
             "stage": stage.value if stage else "",

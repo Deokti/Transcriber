@@ -30,7 +30,7 @@ class _Task(QRunnable):
     def run(self) -> None:
         try:
             made = fetch.get_ffmpeg(self._bin_dir, self._key,
-                                    on_progress=lambda d, t: self._say(d, t),
+                                    on_progress=self._say,
                                     should_cancel=self._cancelled)
             self._finish(made)
         except Cancelled:

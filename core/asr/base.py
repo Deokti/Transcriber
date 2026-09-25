@@ -56,7 +56,8 @@ class AsrBackend(Protocol):
         прервать закачку между кусками.
         """
 
-    def transcribe(self, audio: Path, profile: Profile) -> tuple[TranscriptionInfo, Iterator[Segment]]:
+    def transcribe(self, audio: Path,
+                   profile: Profile) -> tuple[TranscriptionInfo, Iterator[Segment]]:
         """Отдать сведения о записи и поток сегментов.
 
         Поток ленивый: сегменты приходят по мере счёта, и стадия успевает

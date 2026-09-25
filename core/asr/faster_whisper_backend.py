@@ -85,7 +85,8 @@ class FasterWhisperBackend:
         self._key = key
         return time.monotonic() - started
 
-    def transcribe(self, audio: Path, profile: Profile) -> tuple[TranscriptionInfo, Iterator[Segment]]:
+    def transcribe(self, audio: Path,
+                   profile: Profile) -> tuple[TranscriptionInfo, Iterator[Segment]]:
         if self._model is None:
             raise CoreError(Code.MODEL_LOAD_FAILED, reason="model_not_loaded")
 

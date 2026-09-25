@@ -182,7 +182,8 @@ def _by_code(e: Event, d: dict, stage: str) -> str | None:
         return f"{prefix}имя занято другой записью, документ назову «{d['stem']}»"
 
     if code == Code.STOP_REQUESTED:
-        return f"{prefix}доработаю {d.get('current') or 'текущий файл'}, в очереди ещё {d['pending']}"
+        return (f"{prefix}доработаю {d.get('current') or 'текущий файл'}, "
+                f"в очереди ещё {d['pending']}")
     if code == Code.CANCEL_REQUESTED:
         return f"{prefix}прерываю, сохраняю посчитанное"
     if code == Code.STOP_UNDONE:
