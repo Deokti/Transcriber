@@ -129,14 +129,16 @@ certutil -hashfile Transcriber-0.1.0-windows-amd64-cpu.zip SHA256
 
 ## Запуск для разработки
 
-Нужны **Python 3.12** и **ffmpeg**. Видеокарта не обязательна: без неё всё
-считается на процессоре, просто дольше.
+Нужен **Python 3.12**. ffmpeg и модели программа скачивает сама, но если они
+уже есть — возьмёт готовые. Видеокарта не обязательна: без неё всё считается
+на процессоре, просто дольше.
 
 ```bash
-git clone <repo> && cd Transcriber
+git clone https://github.com/Deokti/Transcriber.git && cd Transcriber
 python -m venv .venv
 .venv\Scripts\activate           # macOS и Linux: source .venv/bin/activate
 pip install -r requirements.txt
+pip install -r requirements-dev.txt   # нужен только для сборки и проверки стиля
 ```
 
 **ffmpeg** ищется в папке данных приложения, в `PATH` и в нескольких привычных
@@ -147,49 +149,88 @@ pip install -r requirements.txt
 Папку для них тоже можно сменить в настройках — например, указать на уже
 скачанный кеш HuggingFace.
 
-### Окно
+## Команды
 
-```bash
-.venv\Scripts\python.exe -m app.main
-```
+Всё запускается из корня проекта интерпретатором из окружения: на Windows это
+`.venv\Scripts\python.exe`, на macOS и Linux — `.venv/bin/python`. Дальше для
+краткости просто `python`.
 
-Ключи для разработки:
+### Пока пишешь код
+
+| Команда | Что делает |
+|---|---|
+| `python -m app.main` | окно как оно есть у человека |
+| `python -m app.main --watch` | то же, но правка QML подхватывается на лету: окно пересобирает себя, а мосты остаются прежними — очередь файлов и опрошенное окружение не нужно набирать заново |
+| `python -m cli lecture.mkv` | то же ядро без окна, удобно когда правишь конвейер |
+
+Ключи окна, все для разработки:
 
 | Ключ | Зачем |
 |---|---|
+| `--watch` | перечитывать разметку при каждой правке |
 | `--screen main\|settings\|progress\|result` | открыть сразу нужный экран |
 | `--light`, `--dark` | принудительная тема, мимо настроек |
 | `--ui-lang ru\|en` | язык интерфейса на один запуск |
-| `--shot файл.png` | отрисовать окно и сохранить картинку (работает и без экрана) |
+| `--shot файл.png` | отрисовать окно, сохранить картинку и выйти |
 
-Снимок без экрана удобен для проверки вёрстки:
+### Когда проверяешь сделанное
 
 ```bash
-QT_QPA_PLATFORM=offscreen .venv/Scripts/python.exe -m app.main --shot out.png --light
+python tests/run_all.py                      # все тесты, каждый своим процессом
+python tests/test_queue_takes_urls.py        # один тест, когда чинишь его же
 ```
 
-### Командная строка
+Снимок экрана без окна — быстрый способ посмотреть вёрстку, не отрываясь
+от терминала:
 
 ```bash
-python -m cli lecture.mkv
+QT_QPA_PLATFORM=offscreen python -m app.main --shot out.png --light
+```
+
+Правило тестов: тест заводится из настоящей ошибки и один раз прогоняется на
+сломанном коде — тест, который зеленеет всегда, хуже отсутствующего.
+Подробности — в [tests/README.md](tests/README.md).
+
+Проверка стиля и мёртвого кода:
+
+```bash
+python -m ruff check core app cli tools tests
+```
+
+### Когда собираешь выпуск
+
+Собирается только под ту систему, на которой запущено: PyInstaller не умеет
+кросс-сборку, поэтому маковский образ делается на маке, а линуксовый архив —
+на линуксе. Всё складывается в `release/`.
+
+| Команда | Что получается |
+|---|---|
+| `python tools/build.py` | обычная сборка: архив с программой |
+| `python tools/build.py --cuda` | сборка с библиотеками CUDA (Windows, Linux) |
+| `python tools/build.py --cuda --installer` | она же плюс установщик для Windows |
+| `python tools/build.py --all` | обе подряд |
+| `python tools/build.py --sums` | только пересчитать `SHA256SUMS.txt` — например, когда в `release/` положили образ, собранный на другой машине |
+| `python tools/make_icons.py` | пересобрать значки из `app/icons/*.svg` под все три системы |
+
+### Разовое и обслуживание
+
+| Команда | Что делает |
+|---|---|
+| `python -m cli --list-models` | каталог моделей: вес, языки, скорость, качество |
+| `python -m cli --get-ffmpeg` | скачать ffmpeg в папку данных приложения |
+| `python -m cli --save-settings --models-dir D:\Models` | запомнить папку моделей для следующих запусков |
+| `python -m cli --save-profile быстро.json …` | сохранить набор ключей пресетом |
+| `python -m cli --profile быстро.json запись.mkv` | взять настройки из пресета |
+
+Примеры работы из командной строки:
+
+```bash
 python -m cli "D:\Video\*.mkv" --lang ru --denoise medium
 python -m cli D:\Lectures --audio-only --audio-format mp3 -o D:\Sound
-python -m cli --list-models
+python -m cli запись.mkv --with-audio --trim-silence --force
 ```
 
 Полный список ключей — `python -m cli --help`.
-
-### Тесты
-
-```bash
-python tests/run_all.py
-```
-
-Окно рисуется без экрана, поэтому ничего не мелькает. Каждый тест — отдельный
-процесс: приложение Qt в процессе может быть только одно. Правило простое: тест
-заводится из настоящей ошибки и один раз прогоняется на сломанном коде — тест,
-который зеленеет всегда, хуже отсутствующего. Подробности — в
-[tests/README.md](tests/README.md).
 
 ## Где что лежит
 
