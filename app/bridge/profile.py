@@ -7,12 +7,14 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from pathlib import Path
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from app.bridge.paths import clean
 from app.bridge.settings import SettingsBridge
-from core import platform
+from core import platform, presets
+from core.env import models
 from core.profile import TARGET_AUDIO, TARGET_BOTH, TARGET_TEXT, Profile
 
 
@@ -23,6 +25,9 @@ class ProfileBridge(QObject):
         super().__init__(parent)
         self._profile = Profile.defaults()
         self._profile.output_dir = settings.outputDir
+        self._preset = ""                 # какой пресет выбран последним
+        self._preset_values: dict = {}    # каким он был в момент выбора
+        self._presets = presets.names(self._folder())
 
     def snapshot(self) -> Profile:
         """Копия для очереди."""
@@ -178,3 +183,81 @@ class ProfileBridge(QObject):
     @Slot(int)
     def setCpuThreads(self, value: int) -> None:
         self._set("cpu_threads", value)
+
+    # --- пресеты --------------------------------------------------------
+    def _folder(self) -> Path:
+        return platform.paths().profiles
+
+    def _reload(self) -> None:
+        self._presets = presets.names(self._folder())
+
+    @Property("QVariantList", notify=changed)
+    def presets(self) -> list:
+        """Имена сохранённых пресетов по алфавиту."""
+        return self._presets
+
+    @Property(str, notify=changed)
+    def preset(self) -> str:
+        """Какой пресет выбран последним; пусто — никакой."""
+        return self._preset
+
+    @Property(bool, notify=changed)
+    def presetModified(self) -> bool:
+        """Настройки уже разошлись с выбранным пресетом — стоит сказать."""
+        return bool(self._preset) and presets.values(self._profile) != self._preset_values
+
+    @Slot(str, result=bool)
+    def presetExists(self, name: str) -> bool:
+        return presets.exists(name, self._folder())
+
+    @Slot(str)
+    def applyPreset(self, name: str) -> None:
+        try:
+            loaded = presets.load(name, self._folder())
+        except (OSError, ValueError):
+            self._reload()            # файл удалили мимо программы — список отстал
+            self.changed.emit()
+            return
+        # Пресет мог приехать с другой машины: видеокарты, на которой он
+        # сохранён, здесь может не быть, а модели — не оказаться в каталоге.
+        # Тогда оставляем свои значения, а не ломаем запуск.
+        if loaded.get("device") and platform.usable_device(loaded["device"])[1]:
+            loaded.pop("device")
+            loaded.pop("compute", None)
+        if "model" in loaded and models.get(loaded["model"]) is None:
+            loaded.pop("model")
+        for key, value in loaded.items():
+            setattr(self._profile, key, value)
+        self._preset = presets.clean_name(name)
+        self._preset_values = presets.values(self._profile)
+        self.changed.emit()
+
+    @Slot(str, result=bool)
+    def savePreset(self, name: str) -> bool:
+        name = presets.clean_name(name)
+        try:
+            presets.save(self._profile, name, self._folder())
+        except (OSError, ValueError):
+            return False
+        self._preset = name
+        self._preset_values = presets.values(self._profile)
+        self._reload()
+        self.changed.emit()
+        return True
+
+    @Slot(str)
+    def removePreset(self, name: str) -> None:
+        try:
+            presets.remove(name, self._folder())
+        except (OSError, ValueError):
+            pass
+        if presets.clean_name(name) == self._preset:
+            self._preset = ""
+        self._reload()
+        self.changed.emit()
+
+    @Slot()
+    def clearPreset(self) -> None:
+        """«Без пресета»: настройки остаются, пропадает только имя."""
+        self._preset = ""
+        self.changed.emit()

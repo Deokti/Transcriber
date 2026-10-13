@@ -17,8 +17,6 @@ Item {
 
     // Очередь живёт в мосте: окно её показывает, но не хранит.
     readonly property bool hasFiles: Queue.count > 0
-    // Выбранной модели нет на диске: работа начнётся со скачивания, и
-    // кнопка обязана сказать об этом заранее — так в макете.
     // Что человек заказал. Распознавания может и не быть — тогда модель,
     // язык и устройство ни при чём, и это должно быть видно: недоступное
     // выключено и объяснено, а не спрятано (правило 3 брифа).
@@ -32,12 +30,18 @@ Item {
     readonly property var tempValues: ["delete", "keep", "move"]
     readonly property var chunkValues: [15, 30, 45, 60]
     readonly property var threadValues: [0, 2, 4, 8, 16]
+    // Выбранной модели нет на диске: работа начнётся со скачивания, и
+    // кнопка обязана сказать об этом заранее — так в макете.
     readonly property bool needsDownload: !screen.audioOnly
                                           && Env.downloadedModels.indexOf(Task.model) < 0
     readonly property var chosenModel: Env.models.filter(function (m) {
         return m.id === Task.model
     })[0]
 
+
+    PresetPopup {
+        id: presetPopup
+    }
 
     FolderDialog {
         id: outputPicker
@@ -101,6 +105,32 @@ Item {
                 AppButton {
                     text: I18n.strings["action.chooseFiles"]
                     onClicked: filePicker.open()
+                }
+
+                // Пресеты — в полосе, как в макете: выбрать вид работы
+                // нужно раньше, чем крутить отдельные поля. Пока пресетов
+                // нет, поле с одним «Без пресета» было бы шумом.
+                ComboField {
+                    // Раскладка в раскладке по умолчанию тянется на всю ширину
+                    Layout.fillWidth: false
+                    Layout.preferredWidth: 220
+                    visible: Task.presets.length > 0
+                    model: [I18n.strings["preset.none"]].concat(Task.presets)
+                    values: [""].concat(Task.presets)
+                    value: Task.preset
+                    onChosen: function (value) {
+                        if (value === "")
+                            Task.clearPreset()
+                        else
+                            Task.applyPreset(value)
+                    }
+                }
+                Text {
+                    visible: Task.presetModified
+                    text: I18n.strings["preset.modified"]
+                    color: Theme.textMuted
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSmall
                 }
 
                 Item { Layout.fillWidth: true }
@@ -831,7 +861,10 @@ Item {
 
                 Item { Layout.fillWidth: true }
 
-                AppButton { text: I18n.strings["action.savePreset"] }
+                AppButton {
+                    text: I18n.strings["action.savePreset"]
+                    onClicked: presetPopup.open()
+                }
                 AppButton {
                     text: !screen.hasFiles ? I18n.strings["action.startDisabled"]
                         : screen.needsDownload ? I18n.strings["action.downloadAndStart"]

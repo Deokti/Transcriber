@@ -33,6 +33,10 @@ ColumnLayout {
     spacing: Theme.gapLabel
 
     onValueChanged: syncIndex()
+    // Список пунктов сменился, а выбор нет — например, удалили соседний
+    // пресет. Номер выбранного сдвинулся; сверяем, когда ComboBox перечтёт
+    // свою модель, а не раньше: он сбрасывает номер при смене списка.
+    onValuesChanged: Qt.callLater(syncIndex)
     Component.onCompleted: syncIndex()
 
     function syncIndex() {

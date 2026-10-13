@@ -13,6 +13,7 @@ FileRow 1.0 FileRow.qml
 FolderRow 1.0 FolderRow.qml
 NavLinks 1.0 NavLinks.qml
 Panel 1.0 Panel.qml
+PresetPopup 1.0 PresetPopup.qml
 ProgressBar 1.0 ProgressBar.qml
 SectionTitle 1.0 SectionTitle.qml
 ServiceBar 1.0 ServiceBar.qml
