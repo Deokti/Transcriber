@@ -178,6 +178,9 @@ def _by_code(e: Event, d: dict, stage: str) -> str | None:
     if code == Code.OUTPUT_EXISTS:
         return (f"{prefix}пропуск {d['name']}: {', '.join(d['formats'])} уже есть "
                 f"(--force чтобы перезаписать)")
+    if code == Code.SEGMENTS_REUSED:
+        return (f"{prefix}{d['name']} уже распознан с теми же настройками: "
+                f"собираю {', '.join(d['formats'])} из готовых сегментов")
     if code == Code.OUTPUT_RENAMED:
         return f"{prefix}имя занято другой записью, документ назову «{d['stem']}»"
 

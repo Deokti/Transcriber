@@ -47,6 +47,21 @@ TEMP_DELETE = "delete"
 TEMP_KEEP = "keep"
 TEMP_MOVE = "move"
 
+#: Настройки, от которых зависит сам текст. Поменял любую — готовые сегменты
+#: уже не ответ на вопрос, и запись нужно считать заново. Остальное — формат,
+#: оформление, папка, судьба WAV — на текст не влияет, и его можно менять
+#: переэкспортом за секунду (сценарий 6.3). Устройство и точность сюда не
+#: входят нарочно: разница в тексте между ними на уровне запятой, а пересчёт
+#: стоит восемьдесят минут.
+RECIPE = ("model", "language", "track", "loudnorm", "denoise", "trim_silence",
+          "skip_prepare", "vad", "sensitivity", "chunk_length", "beam",
+          "condition_on_previous_text", "initial_prompt")
+
+
+def recipe(profile: "Profile") -> dict[str, Any]:
+    """Рецепт текста: значения настроек из RECIPE."""
+    return {name: getattr(profile, name) for name in RECIPE}
+
 
 @dataclass
 class Profile:

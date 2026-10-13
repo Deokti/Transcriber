@@ -8,6 +8,7 @@ from core.env import models
 from core.events import Code, CoreError, Kind, Stage
 from core.formats import segments as segments_file
 from core.job import Job
+from core.profile import recipe
 from core.progress import Pace
 
 
@@ -83,6 +84,10 @@ def run(job: Job, ctx: RunContext) -> None:
         "compute": profile.compute,
         "vad": profile.vad,
         "condition_on_previous_text": profile.condition_on_previous_text,
+        # По рецепту следующий запуск решает, годятся ли эти сегменты, а по
+        # размеру — не переписан ли исходник под тем же именем.
+        "recipe": recipe(profile),
+        "source_size": job.source.stat().st_size,
     }
 
     pace = Pace(step=max(profile.progress_step_min, 0.1) * 60)

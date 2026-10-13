@@ -84,6 +84,7 @@ class Code:
 
     # выдача и уборка
     OUTPUT_EXISTS = "OUTPUT_EXISTS"
+    SEGMENTS_REUSED = "SEGMENTS_REUSED"        # документ собран из готовых сегментов
     OUTPUT_RENAMED = "OUTPUT_RENAMED"          # имя занято чужим файлом, взяли другое
     EXPORT_DONE = "EXPORT_DONE"
     TEMP_KEPT = "TEMP_KEPT"

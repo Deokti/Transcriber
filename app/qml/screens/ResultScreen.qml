@@ -250,6 +250,18 @@ Item {
 
                         // Сохранённое после обрыва — не то же самое, что готовое,
                         // и человек должен узнать об этом здесь, а не в журнале.
+                        // Документ собран без распознавания — это надо сказать:
+                        // иначе «за 1 с» на часовой лекции читается как поломка.
+                        Text {
+                            Layout.fillWidth: true
+                            visible: modelData.reused === true
+                            text: I18n.strings["result.reused"]
+                            wrapMode: Text.WordWrap
+                            color: Theme.textMuted
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSmall
+                        }
+
                         Text {
                             Layout.fillWidth: true
                             visible: modelData.partial === true

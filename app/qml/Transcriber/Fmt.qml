@@ -108,6 +108,7 @@ QtObject {
         case "TRACK_FALLBACK":
             return text.arg(data.asked)
         case "OUTPUT_EXISTS":
+        case "SEGMENTS_REUSED":
             return text.arg(data.name || "")
         case "OUTPUT_RENAMED":
             return text.arg(data.name || "").arg(data.stem || "")

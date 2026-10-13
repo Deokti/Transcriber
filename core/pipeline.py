@@ -14,7 +14,7 @@ from core.events import Cancelled, Code, CoreError, Event, Kind, Stage
 from core.formats import segments as segments_file
 from core.job import Job, JobState
 from core.media import encoding
-from core.profile import TARGET_AUDIO, TARGET_BOTH, TARGET_TEXT
+from core.profile import TARGET_AUDIO, TARGET_BOTH, TARGET_TEXT, recipe
 from core.stages import audio, check, cleanup, export, prepare, probe, transcribe
 
 #: Модуль каждой стадии. Порядок задаёт plan(), здесь только исполнители:
@@ -80,6 +80,8 @@ def run_job(job: Job, ctx: RunContext) -> Job:
             # что и об обычном конце работы. Иначе экран результата пуст:
             # ни файла, ни готового документа — как будто ничего не было.
             job.stats["skipped"] = True
+            return _finish(job, ctx)
+        if _reuse_segments(job, ctx):
             return _finish(job, ctx)
 
         for number, stage in enumerate(stages, 1):
@@ -160,6 +162,61 @@ def _save_partial(job: Job, ctx: RunContext) -> None:
     _cleanup_failed(job, safe)
 
 
+def _matches(job: Job, head: dict) -> bool:
+    """Посчитаны ли эти сегменты так, как просят сейчас."""
+    if head.get("partial"):
+        return False     # обрывок после отмены: запускают затем, чтобы досчитать
+    stored = head.get("recipe")
+    if stored is None:
+        # Файлы версии 0.1.0 рецепта не знают — сверяем то, что в них есть
+        return head.get("model") == job.profile.model
+    if stored != recipe(job.profile):
+        return False
+    size = head.get("source_size")
+    return size is None or (job.source.is_file() and job.source.stat().st_size == size)
+
+
+def _reuse_segments(job: Job, ctx: RunContext) -> bool:
+    """Документа в нужном формате нет, но сегменты есть — собираем из них.
+
+    Сценарий 6.3: человек посчитал лекцию в txt, а потом захотел docx или
+    субтитры. Сегменты лежат рядом, посчитаны теми же настройками — значит
+    распознавать заново незачем, документ собирается за секунду (FR-19).
+    """
+    if job.profile.force or job.profile.target == TARGET_AUDIO:
+        return False
+    path = job.output(segments_file.SUFFIX)
+    head = segments_file.meta(path)
+    if not head or not _matches(job, head):
+        return False
+
+    if job.profile.target == TARGET_BOTH:
+        # Звука нет — его всё равно извлекать, и пусть это идёт обычным путём
+        audio_path = job.beside(encoding(job.profile.audio_format).suffix)
+        if not audio_path.is_file() or audio_path.stat().st_size == 0:
+            return False
+        job.artifacts["audio"] = audio_path
+
+    _head, segments = segments_file.read(path)
+    if not segments:
+        return False
+
+    job.segments = segments
+    job.artifacts["segments"] = path
+    job.stats.update(segments=len(segments),
+                     words=sum(len(s.text.split()) for s in segments),
+                     language=head.get("language", job.profile.language),
+                     audio=float(head.get("duration") or 0.0),
+                     reused=True)
+    ctx.event(Kind.INFO, None, Code.SEGMENTS_REUSED, name=job.source.name,
+              segments=len(segments), formats=list(job.profile.formats))
+
+    for number, stage in enumerate((Stage.CHECK, Stage.EXPORT), 1):
+        with _stage(ctx, stage, number, 2):
+            STAGES[stage].run(job, ctx)
+    return True
+
+
 def _claim_name(job: Job, ctx: RunContext) -> None:
     """Даёт результату имя, которое не занято чужим файлом.
 
@@ -196,15 +253,13 @@ def _already_done(job: Job, ctx: RunContext) -> bool:
         if not audio_path.is_file() or audio_path.stat().st_size == 0:
             return False
 
-    # Документ есть, но посчитан другой моделью — значит лежит не то, что
-    # просят сейчас. Модель меняют как раз затем, чтобы получить другой
-    # текст, и «пропущено» в ответ выглядит издевательством.
+    # Документ есть, но посчитан иначе, чем просят сейчас: другой моделью,
+    # на другом языке, с другим звуком — или это обрывок после отмены.
+    # Человек меняет настройки как раз затем, чтобы получить другой текст,
+    # и «пропущено» в ответ выглядело бы издевательством. Документ без
+    # сегментов рядом сверить не с чем — его принимаем как есть (D-7).
     head = segments_file.meta(job.output(segments_file.SUFFIX))
-    if head.get("model") and head["model"] != job.profile.model:
-        return False
-    # Обрывок после отмены — не результат, а то, что спасли по пути.
-    # Человек запускает снова именно затем, чтобы досчитать.
-    if head.get("partial"):
+    if head and not _matches(job, head):
         return False
 
     # Готовое — тоже результат: окну нужно, что именно лежит и где.
