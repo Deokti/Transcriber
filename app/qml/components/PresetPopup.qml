@@ -108,6 +108,7 @@ Popup {
 
             ConfirmButton {
                 visible: popup.taken
+                large: true                      // вровень с главной
                 text: I18n.strings["preset.remove"]
                 confirmText: I18n.strings["storage.confirm"]
                 onConfirmed: {
@@ -117,6 +118,7 @@ Popup {
             }
             Item { Layout.fillWidth: true }
             AppButton {
+                large: true
                 text: I18n.strings["action.cancel"]
                 onClicked: popup.close()
             }

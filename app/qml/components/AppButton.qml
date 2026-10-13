@@ -13,6 +13,11 @@ Button {
 
     property bool primary: false
     property bool flat_: false
+    // Высота — отдельно от важности. Главная кнопка выше обычной, когда
+    // стоит одна; рядом с обычными они выравниваются: в подвале обычной
+    // ставят large, в строке таблицы главной снимают — иначе низ кнопок
+    // идёт ступенькой.
+    property bool large: primary
 
     // Ширину считает сам Control из содержимого и полей — своя формула
     // от contentItem умеет дёргать раскладку на каждое изменение состояния.
@@ -20,7 +25,7 @@ Button {
     rightPadding: leftPadding
     implicitWidth: Math.max(implicitContentWidth + leftPadding + rightPadding,
                             flat_ ? 0 : 92)
-    implicitHeight: primary ? Theme.hPrimary : Theme.hField
+    implicitHeight: large ? Theme.hPrimary : Theme.hField
 
     font.family: Theme.fontFamily
     font.pixelSize: primary ? Theme.fontStrong : Theme.fontBase

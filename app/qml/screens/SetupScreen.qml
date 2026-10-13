@@ -354,11 +354,13 @@ Item {
 
                 AppButton {
                     visible: !screen.allReady
+                    large: true                  // вровень с главной
                     text: I18n.strings["setup.later"]
                     onClicked: screen.done()
                 }
                 AppButton {
                     visible: screen.busy
+                    large: true
                     text: I18n.strings["storage.pause"]
                     onClicked: screen.pause()
                 }

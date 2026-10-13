@@ -394,6 +394,7 @@ Item {
                                 Layout.preferredWidth: screen.actionWidth
                                 visible: !Storage.ffmpeg.found && !Deps.busy
                                 primary: true
+                                large: false             // строка таблицы: высота как у соседних
                                 text: Deps.error.code !== undefined ? I18n.strings["storage.retry"]
                                                                     : I18n.strings["storage.download"]
                                 onClicked: Deps.getFfmpeg()
@@ -476,6 +477,7 @@ Item {
                                     visible: mode === "absent"
                                     enabled: Storage.downloading === ""
                                     primary: modelData.id === Task.model
+                                    large: false             // строка таблицы: высота как у соседних
                                     text: I18n.strings["storage.download"]
                                     onClicked: Storage.downloadModel(modelData.id)
                                 }
@@ -507,6 +509,7 @@ Item {
                                     visible: mode === "failed" || mode === "partial"
                                     enabled: Storage.downloading === ""
                                     primary: true
+                                    large: false             // строка таблицы: высота как у соседних
                                     text: mode === "failed" ? I18n.strings["storage.retry"]
                                                             : I18n.strings["storage.resume"]
                                     onClicked: Storage.downloadModel(modelData.id)

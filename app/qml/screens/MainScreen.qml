@@ -221,6 +221,7 @@ Item {
                                 }
                                 AppButton {
                                     text: I18n.strings["action.chooseFolder"]
+                                    large: true          // вровень с главной рядом
                                     onClicked: sourcePicker.open()
                                 }
                             }
@@ -863,6 +864,7 @@ Item {
 
                 AppButton {
                     text: I18n.strings["action.savePreset"]
+                    large: true                  // вровень с «Запустить»
                     onClicked: presetPopup.open()
                 }
                 AppButton {
