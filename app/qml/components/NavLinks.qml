@@ -17,7 +17,7 @@ RowLayout {
     spacing: Theme.gapButtons
 
     Repeater {
-        model: ["storage", "settings"]
+        model: ["storage", "diagnostics", "settings"]
 
         delegate: AppButton {
             id: link

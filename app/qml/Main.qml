@@ -55,6 +55,14 @@ Window {
         onNavigate: function (name) { root.go(name) }
     }
 
+    DiagnosticsScreen {
+        anchors.fill: parent
+        visible: root.screen === "diagnostics"
+        origin: root.origin
+        onHome: root.screen = root.origin
+        onNavigate: function (name) { root.go(name) }
+    }
+
     SettingsScreen {
         anchors.fill: parent
         visible: root.screen === "settings"

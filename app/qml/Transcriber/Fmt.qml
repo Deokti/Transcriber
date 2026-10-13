@@ -64,8 +64,10 @@ QtObject {
 
     function fileSize(bytes) {
         const kb = (bytes || 0) / 1024
-        if (kb >= 1024 * 1024)
-            return decimal(kb / 1024 / 1024, 1) + " " + I18n.strings["unit.gb"]
+        // «214 ГБ», а не «214,0 ГБ»: у больших чисел десятые — шум
+        const gb = kb / 1024 / 1024
+        if (gb >= 1)
+            return decimal(gb, gb >= 100 ? 0 : 1) + " " + I18n.strings["unit.gb"]
         if (kb >= 1024)
             return Math.round(kb / 1024) + " " + I18n.strings["unit.mb"]
         return Math.round(kb) + " " + I18n.strings["unit.kb"]
@@ -132,15 +134,118 @@ QtObject {
         return text
     }
 
-    // «…\Лекции\Готовое» — человеку нужна папка, а не полный путь
-    // День словами: «12 сентября», а если сегодня — «сегодня». Месяц по
-    // правилам языка интерфейса: Qt сам ставит его в нужный падеж.
+    // Строка журнала запуска: «14:07:12 звук готов за 12 с, 88 МБ».
+    // Журнал хранит коды и числа, слова подбираются при показе — поэтому
+    // журнал, записанный по-русски, читается и по-английски (принцип П-1).
+    // Пустая строка — показывать нечего.
+    function logLine(item) {
+        const text = logText(item)
+        return text ? String(item.time || "").substring(11, 19) + "  " + text : ""
+    }
+
+    function logText(item) {
+        const d = item.data || {}
+        switch (item.kind) {
+        case "queue_started":
+            return tr("log.queue", "").arg(plural(d.total, I18n.strings["log.file"]))
+        case "job_started":
+            return tr("log.job", "").arg(d.name || "")
+        case "stage_done":
+            // Время этапа говорит, где ушли минуты; мгновенные — шум
+            return d.seconds >= 1 ? tr("log.stageDone", "").arg(tr("log.stage." + item.stage, item.stage))
+                                                            .arg(duration(d.seconds))
+                                  : ""
+        case "queue_done":
+            return tr("log.queueDone", "").arg(duration(d.seconds)).arg(
+                ["done", "skipped", "failed", "cancelled"]
+                    .filter(function (key) { return key === "done" || d[key] > 0 })
+                    .map(function (key) { return tr("log." + key, "").arg(d[key] || 0) })
+                    .join(", "))
+        case "info":
+        case "warning":
+        case "failed":
+            return logEvent(item.code, d)
+        }
+        return ""
+    }
+
+    function baseName(path) {
+        const text = String(path || "")
+        return text.substring(Math.max(text.lastIndexOf("/"), text.lastIndexOf("\\")) + 1)
+    }
+
+    function logEvent(code, d) {
+        switch (code) {
+        case "SOURCE_INFO":
+            return tr("log.SOURCE_INFO", "").arg(d.name || "")
+                .arg(tr(d.has_video ? "log.video" : "log.audio", ""))
+                .arg(duration(d.duration) + ", " + fileSize(d.size))
+        case "TRACKS_FOUND":
+            return tr("log.TRACKS_FOUND", "").arg((d.tracks || []).length)
+        case "FILTERS_APPLIED": {
+            const what = []
+            if (d.denoise && d.denoise !== "off")
+                what.push(tr("log.denoise", "").arg(tr("sound.denoise." + d.denoise, d.denoise).toLowerCase()))
+            if (d.trim_silence)
+                what.push(tr("log.trim", ""))
+            if (d.loudnorm)
+                what.push(tr("log.loudnorm", ""))
+            return tr("log.FILTERS_APPLIED", "").arg(tr("audio." + d.format, d.format || ""))
+                .arg(what.length ? what.join(", ") : tr("log.noFilters", ""))
+        }
+        case "AUDIO_READY":
+            return tr("log.AUDIO_READY", "").arg(duration(d.seconds)).arg(fileSize(d.size))
+        case "AUDIO_SAVED":
+        case "TEMP_MOVED":
+            return tr("log." + code, "").arg(baseName(d.path))
+        case "EXPORT_DONE":
+            return tr("log.EXPORT_DONE", "").arg(baseName(d.path))
+        case "TEMP_DELETED":
+            return tr("log.TEMP_DELETED", "").arg(fileSize(d.size))
+        case "MODEL_LOADING":
+            return tr("log.MODEL_LOADING", "").arg(d.model || "").arg(deviceName(d.device))
+        case "MODEL_READY":
+            return d.cached ? tr("log.MODEL_CACHED", "")
+                            : tr("log.MODEL_READY", "").arg(duration(d.seconds))
+        case "LANGUAGE_DETECTED":
+            return tr("log.LANGUAGE_DETECTED", "").arg(languageName(d.language))
+                .arg(Math.round((d.probability || 0) * 100))
+        case "TRANSCRIBE_DONE":
+            return tr("log.TRANSCRIBE_DONE", "")
+                .arg(plural(d.segments, I18n.strings["log.fragment"]))
+                .arg(plural(d.words, I18n.strings["log.word"]))
+                .arg(duration(d.seconds))
+        case "QUALITY_CLEAN":
+        case "CUDA_READY":
+            return tr("log." + code, "")
+        case "CUDA_UNAVAILABLE":
+            return tr("log.CUDA_UNAVAILABLE", "").arg((d.missing || []).join(", "))
+        case "FFMPEG_FAILED":
+        case "FFPROBE_FAILED":
+            // Хвост вывода ffmpeg — ради него журнал и открывают
+            return noticeText({code: code, data: d}) + lastLine(d.stderr)
+        case "MODEL_LOAD_FAILED":
+            return noticeText({code: code, data: d}) + (d.reason ? " " + d.reason : "")
+        }
+        // Остальное говорит теми же словами, что и лента сообщений; а код,
+        // которому слов не нашлось, лучше показать как есть, чем потерять.
+        return tr("notice." + code, "") !== "" ? noticeText({code: code, data: d}) : (code || "")
+    }
+
+    function lastLine(text) {
+        const lines = String(text || "").trim().split("\n")
+        const tail = lines[lines.length - 1].trim()
+        return tail ? " " + tail : ""
+    }
+
     // Дробное число по правилам языка интерфейса: «2,9» по-русски, «2.9»
     // по-английски. toFixed ставит точку всегда, и в русском тексте она режет глаз.
     function decimal(value, digits) {
         return Number(value || 0).toLocaleString(Qt.locale(I18n.language), "f", digits)
     }
 
+    // День словами: «12 сентября», а если сегодня — «сегодня». Месяц по
+    // правилам языка интерфейса: Qt сам ставит его в нужный падеж.
     function day(iso) {
         if (!iso)
             return ""
@@ -168,6 +273,7 @@ QtObject {
         return n + " " + (words[index] || words[words.length - 1] || "")
     }
 
+    // «…\Лекции\Готовое» — человеку нужна папка, а не полный путь
     function folderOf(path) {
         const text = String(path || "")
         const cut = Math.max(text.lastIndexOf("/"), text.lastIndexOf("\\"))

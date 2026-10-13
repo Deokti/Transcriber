@@ -20,7 +20,7 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from app.bridge.profile import ProfileBridge
 from app.bridge.queue import STATE_READY, QueueBridge
 from app.bridge.settings import SettingsBridge
-from core import platform
+from core import journal, platform
 from core.asr.faster_whisper_backend import FasterWhisperBackend
 from core.events import Code, CoreError, Event, Kind, Stage
 from core.job import Job
@@ -45,7 +45,7 @@ CANCELLED = "cancelled"
 #: сообщений: это итог работы, а не замечание по ходу.
 VERDICTS = (Code.QUALITY_CLEAN, Code.QUALITY_MINOR, Code.QUALITY_STUCK)
 
-#: Сколько сообщений держим на экране. Журнал целиком пишется в файл ядром.
+#: Сколько сообщений держим на экране. Целиком всё идёт в журнал запуска.
 NOTICE_LIMIT = 40
 
 #: Как часто ядро отчитывается о ходе распознавания, минуты звука.
@@ -72,6 +72,7 @@ class RunBridge(QObject):
         self._queue = queue
         self._profile = profile
         self._runner: JobRunner | None = None
+        self._journal: journal.Journal | None = None
         # Без родителя нарочно: пережить мост, чтобы запоздалое событие
         # из рабочего потока не пришло к удалённому объекту.
         self._sink = _Sink()
@@ -195,6 +196,8 @@ class RunBridge(QObject):
 
         self._reset()
         self._failure = {}
+        paths = platform.paths().ensure()
+        self._open_journal(paths)
         profile = self._profile.snapshot()
         profile.progress_step_min = PROGRESS_STEP_MIN
 
@@ -204,15 +207,17 @@ class RunBridge(QObject):
             profile.device = device
             profile.compute = platform.default_compute(device)
             self._notice(Kind.WARNING, Code.DEVICE_FALLBACK, {"reason": reason})
+            self._log(Event(Kind.WARNING, code=Code.DEVICE_FALLBACK, data={"reason": reason}))
 
         try:
             tools = ensure_tools(self._settings.raw.extra_tool_dirs())
         except CoreError as error:
             self._failure = {"code": error.code, "data": _plain(error.data)}
+            self._log(Event(Kind.FAILED, code=error.code, data=error.data))
+            self._close_journal()
             self.changed.emit()
             return
 
-        paths = platform.paths().ensure()
         models_dir = self._settings.raw.resolve_models_dir()
 
         self._files = [{"name": Path(item["path"]).name, "path": item["path"],
@@ -253,11 +258,34 @@ class RunBridge(QObject):
 
     def shutdown(self) -> bool:
         """Перед выходом: отменить работу и дождаться, пока спасут посчитанное."""
-        return self._runner.shutdown() if self._runner else True
+        done = self._runner.shutdown() if self._runner else True
+        self._close_journal()
+        return done
+
+    # --- журнал запуска -------------------------------------------------
+    def _open_journal(self, paths: platform.Paths) -> None:
+        self._close_journal()
+        try:
+            self._journal = journal.Journal(paths.logs / journal.LAST_RUN)
+        except OSError:
+            self._journal = None      # без журнала работать можно, без работы — нет
+
+    def _log(self, event: Event) -> None:
+        if self._journal is not None:
+            try:
+                self._journal.write(event)
+            except OSError:
+                pass                  # диск кончился — об этом скажет сама работа
+
+    def _close_journal(self) -> None:
+        if self._journal is not None:
+            self._journal.close()
+            self._journal = None
 
     # --- события из ядра ------------------------------------------------
     def _on_event(self, event: Event) -> None:
         kind, stage, code, data = event.kind, event.stage, event.code, event.data
+        self._log(event)
 
         if kind is Kind.JOB_STARTED:
             self._index += 1
@@ -368,6 +396,7 @@ class RunBridge(QObject):
             for item in self._files:
                 if item["state"] in (WAITING, RUNNING):
                     item["state"] = CANCELLED
+            self._close_journal()
             self.changed.emit()
             self.finished.emit()
             return

@@ -14,8 +14,9 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
 
-from app.bridge import (DepsBridge, EnvBridge, ProfileBridge, QueueBridge,
-                        RunBridge, SettingsBridge, ShellBridge, StorageBridge)
+from app.bridge import (DepsBridge, DiagnosticsBridge, EnvBridge, ProfileBridge,
+                        QueueBridge, RunBridge, SettingsBridge, ShellBridge,
+                        StorageBridge)
 from app.i18n import I18n
 from core import platform
 from core.version import VERSION
@@ -154,7 +155,7 @@ def _watch_qml(engine: QQmlApplicationEngine, show) -> QFileSystemWatcher:
     return watcher
 
 
-def connect_bridges(settings, env, run, i18n, storage=None) -> None:
+def connect_bridges(settings, env, run, i18n, *, storage=None, diagnostics=None) -> None:
     """Кто кого будит: связи между мостами.
 
     Отдельной функцией, потому что окно — не единственный, кто эти мосты
@@ -173,6 +174,10 @@ def connect_bridges(settings, env, run, i18n, storage=None) -> None:
         # что работа началась. А после неё на диске могла появиться модель.
         run.started.connect(storage.changed)
         run.finished.connect(storage.refresh)
+
+    if diagnostics is not None:
+        # Журнал последнего запуска дописан — «Диагностика» покажет свежий
+        run.finished.connect(diagnostics.reloadLog)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -236,10 +241,12 @@ def main(argv: list[str] | None = None) -> int:
     shell = ShellBridge()
     deps = DepsBridge(env)
     storage = StorageBridge(settings, env, working=lambda: run.running)
+    diagnostics = DiagnosticsBridge(settings, model=lambda: profile.model)
     i18n = I18n(ui_lang or settings.language)
-    connect_bridges(settings, env, run, i18n, storage)
+    connect_bridges(settings, env, run, i18n, storage=storage, diagnostics=diagnostics)
 
-    _BRIDGES.extend([settings, env, profile, queue, run, shell, deps, storage, i18n])
+    _BRIDGES.extend([settings, env, profile, queue, run, shell, deps, storage,
+                     diagnostics, i18n])
 
     engine = QQmlApplicationEngine()
     engine.addImportPath(str(QML_DIR))
@@ -254,6 +261,7 @@ def main(argv: list[str] | None = None) -> int:
     context.setContextProperty("Shell", shell)
     context.setContextProperty("Deps", deps)
     context.setContextProperty("Storage", storage)
+    context.setContextProperty("Diagnostics", diagnostics)
     def show(screen: str = "") -> None:
         screen = screen or start_screen
         if screen:
@@ -285,6 +293,7 @@ def main(argv: list[str] | None = None) -> int:
     run.shutdown()
     deps.shutdown()
     storage.shutdown()
+    diagnostics.shutdown()
     queue.shutdown()
     return code
 
