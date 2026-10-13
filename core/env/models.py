@@ -70,6 +70,27 @@ def for_language(language: str) -> list[ModelInfo]:
 NEEDED = ("model.bin", "config.json", "tokenizer.json")
 
 
+def nest(model_id: str, models_dir):
+    """Папка, где живёт модель целиком, или None, если её нет.
+
+    Либо своя папка с именем модели, либо гнездо кеша HuggingFace со всеми
+    блобами и слепками. Имя гнезда строим из адреса хранилища, а не ищем по
+    хвосту: по хвосту «large-v3» совпадало и с «faster-distil-whisper-large-v3»,
+    и программа открывала одну модель вместо другой. Удаление из «Хранилища»
+    идёт по этой же папке — тут ошибиться нельзя тем более.
+    """
+    from pathlib import Path
+
+    root = Path(models_dir)
+    if not root.is_dir():
+        return None
+    own = root / model_id
+    if own.is_dir():
+        return own
+    cached = root / ("models--" + repo(model_id).replace("/", "--"))
+    return cached if cached.is_dir() else None
+
+
 def local_dir(model_id: str, models_dir):
     """Папка с готовой моделью или None.
 
@@ -82,33 +103,20 @@ def local_dir(model_id: str, models_dir):
     Ищем и свою папку, и кеш HuggingFace — папку моделей можно указать
     на уже скачанные (решение про models_dir в настройках).
     """
-    from pathlib import Path
-
-    root = Path(models_dir)
-    if not root.is_dir():
+    home = nest(model_id, models_dir)
+    if home is None:
         return None
-
-    own = root / model_id
-    if _complete(own):
-        return own
-
-    needle = model_id.lower()
-    for child in sorted(root.iterdir()):
-        name = child.name.lower()
-        if not child.is_dir() or not name.startswith("models--"):
-            continue
-        # models--Systran--faster-whisper-large-v3 -> large-v3
-        if not (name.endswith("--" + needle) or name.endswith("-" + needle)):
-            continue
-        snapshots = child / "snapshots"
-        if not snapshots.is_dir():
-            continue
-        # Слепков бывает несколько: берём свежий, он же и тот, на который
-        # указывает хранилище после последнего скачивания.
-        for snapshot in sorted((p for p in snapshots.iterdir() if p.is_dir()),
-                               key=lambda p: p.stat().st_mtime, reverse=True):
-            if _complete(snapshot):
-                return snapshot
+    if _complete(home):
+        return home
+    snapshots = home / "snapshots"
+    if not snapshots.is_dir():
+        return None
+    # Слепков бывает несколько: берём свежий, он же и тот, на который
+    # указывает хранилище после последнего скачивания.
+    for snapshot in sorted((p for p in snapshots.iterdir() if p.is_dir()),
+                           key=lambda p: p.stat().st_mtime, reverse=True):
+        if _complete(snapshot):
+            return snapshot
     return None
 
 
