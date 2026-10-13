@@ -133,6 +133,7 @@ Item {
                 }
             }
             Text {
+                objectName: "sizeCell"       // по нему тест сверяет столбец
                 Layout.preferredWidth: 90
                 text: row.size
                 color: Theme.textSecondary
@@ -149,7 +150,7 @@ Item {
             }
             // Колонка кнопок держит ширину и пустой: раскладка сжимает
             // RowLayout без видимых детей в ноль, и размер с состоянием
-            // в такой строке уезжали вправо от столбца.
+            // в такой строке уезжали влево от столбца.
             Item {
                 Layout.preferredWidth: screen.actionWidth * 2 + Theme.gapButtons
                 implicitHeight: actionsRow.implicitHeight
@@ -309,6 +310,7 @@ Item {
                                 font.pixelSize: Theme.fontSmall
                             }
                             Text {
+                                objectName: "sizeCell"
                                 Layout.preferredWidth: 90
                                 text: I18n.strings["storage.colSize"]
                                 color: Theme.textMuted
