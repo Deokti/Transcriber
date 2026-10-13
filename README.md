@@ -90,12 +90,12 @@ ffmpeg. Ни одна секунда записи никуда не отправ
 сравнить строку:
 
 ```bash
-shasum -a 256 Transcriber-0.1.0-macos-arm64-cpu.dmg   # macOS
-sha256sum Transcriber-0.1.0-linux-amd64-cpu.tar.gz    # Linux
+shasum -a 256 Transcriber-0.2.0-macos-arm64-cpu.dmg   # macOS
+sha256sum Transcriber-0.2.0-linux-amd64-cpu.tar.gz    # Linux
 ```
 
 ```
-certutil -hashfile Transcriber-0.1.0-windows-amd64-cpu.zip SHA256
+certutil -hashfile Transcriber-0.2.0-windows-amd64-cpu.zip SHA256
 ```
 
 ## Как устроено
