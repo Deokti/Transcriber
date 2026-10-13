@@ -20,6 +20,18 @@ QtObject {
         return tr("lang." + code, code)
     }
 
+    // Порядок языков в списке: сначала частые, остальные по алфавиту
+    // названий на языке интерфейса. Ядро сортирует по коду, а «fo» перед
+    // «fr» человеку ничего не говорит — он ищет «Фарерский» среди «Ф».
+    function languageOrder(codes, popular) {
+        const head = (popular || []).filter(function (c) { return codes.indexOf(c) >= 0 })
+        const rest = codes.filter(function (c) { return head.indexOf(c) < 0 })
+        rest.sort(function (a, b) {
+            return languageName(a).localeCompare(languageName(b), I18n.language)
+        })
+        return head.concat(rest)
+    }
+
     // «large-v3 · Все языки · 2,9 ГБ · не скачана»
     function modelText(entry) {
         const langs = entry.languages === "en" ? I18n.strings["model.enOnly"]

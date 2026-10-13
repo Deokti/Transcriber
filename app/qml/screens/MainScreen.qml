@@ -30,6 +30,7 @@ Item {
     readonly property var tempValues: ["delete", "keep", "move"]
     readonly property var chunkValues: [15, 30, 45, 60]
     readonly property var threadValues: [0, 2, 4, 8, 16]
+    readonly property var languageCodes: Fmt.languageOrder(Env.languages, Env.popularLanguages)
     // Выбранной модели нет на диске: работа начнётся со скачивания, и
     // кнопка обязана сказать об этом заранее — так в макете.
     readonly property bool needsDownload: !screen.audioOnly
@@ -484,8 +485,8 @@ Item {
                                 enabled_: !screen.audioOnly
                                 hint: screen.audioOnly ? I18n.strings["asr.notNeeded"] : ""
                                 label: I18n.strings["asr.language"]
-                                model: Env.languages.map(function (c) { return Fmt.languageName(c) })
-                                values: Env.languages
+                                model: screen.languageCodes.map(function (c) { return Fmt.languageName(c) })
+                                values: screen.languageCodes
                                 value: Task.language
                                 onChosen: function (code) { Task.setLanguage(code) }
                             }

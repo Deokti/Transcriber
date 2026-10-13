@@ -58,6 +58,7 @@ class EnvBridge(QObject):
             "freeBytes": float(platform.free_bytes(models_dir)),
             "devices": devices,
             "languages": languages.codes(),
+            "popularLanguages": [c for c in languages.POPULAR if languages.supported(c)],
             "models": [dict(m.as_data(), downloaded=models.is_downloaded(m.id, models_dir))
                        for m in models.CATALOG],
             "formats": list(EXPORT_FORMATS),
@@ -105,6 +106,11 @@ class EnvBridge(QObject):
     @Property("QVariantList", notify=changed)
     def languages(self) -> list:
         return self._get("languages", [])
+
+    @Property("QVariantList", notify=changed)
+    def popularLanguages(self) -> list:
+        """Языки, которые идут в списке первыми; остальные — по алфавиту названий."""
+        return self._get("popularLanguages", [])
 
     @Property("QVariantList", notify=changed)
     def models(self) -> list:
