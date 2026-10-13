@@ -152,95 +152,22 @@ def repo(model_id: str) -> str:
     return f"Systran/faster-whisper-{model_id}"
 
 
-class _Silence:
-    """Счётчику нужен файл для вывода, а консоли у нас нет."""
-
-    def write(self, *args) -> None:
-        pass
-
-    def flush(self) -> None:
-        pass
-
-
-def _reporter(on_progress, should_cancel, expected: int):
-    """Счётчик прогресса в том виде, в каком его ждёт huggingface_hub.
-
-    Считать приходится аккуратно: библиотека заводит по счётчику на файл, а
-    в новой схеме хранения — ещё и второй на «сборку» уже скачанного. Сложить
-    всё подряд значит удвоить размер. Поэтому берём счётчики самой загрузки,
-    а если их нет (старая схема) — складываем файловые.
-
-    Знаменатель подпираем размером из каталога: в начале известен размер
-    только первого файла, и без этого проценты прыгали бы от ста к десяти.
-    """
-    from tqdm import tqdm as _tqdm
-
-    bars: dict = {}
-
-    class Reporter(_tqdm):
-        def __init__(self, *args, **kwargs):
-            kwargs["file"] = _Silence()
-            kwargs["leave"] = False
-            super().__init__(*args, **kwargs)
-
-        def update(self, n=1):
-            if should_cancel is not None and should_cancel():
-                raise Cancelled(stage="download")
-            result = super().update(n)
-            if self.unit != "B":
-                return result       # «Fetching 4 files» считает штуки, не байты
-            bars[self] = ((self.desc or "").lower(), self.n, self.total or 0)
-            if on_progress is not None:
-                done, total = _sum(bars)
-                on_progress(done, max(total, expected))
-            return result
-
-    return Reporter
-
-
-def _sum(bars: dict) -> tuple[int, int]:
-    rows = [row for row in bars.values() if "download" in row[0]] or list(bars.values())
-    return sum(row[1] for row in rows), sum(row[2] for row in rows)
-
-
 def download(model_id: str, models_dir, *, on_progress=None, should_cancel=None) -> str:
-    """Качает модель и возвращает путь к ней.
+    """Качает модель в её папку и возвращает путь. Оборвалось — продолжит с места.
 
-    Отмена работает, но скачанное пока пропадает: обрыв не оставляет
-    куска, с которого можно продолжить. Для полутора гигабайт это
-    обидно, и докачка — задача этапа M4 вместе со своим загрузчиком.
+    Качаем сами, мимо huggingface_hub: он выбрасывает недокачанное при любой
+    ошибке, а нам нужна докачка (FR-26). Подробности — в core/env/hub.py.
     """
     from pathlib import Path
 
-    # Xet отключён в core/env/__init__.py — до импорта, позже не считается
-    import huggingface_hub
+    from core.env import hub
 
-    entry = get(model_id)
-    expected = int((entry.size_mb if entry else 0) * 1024 * 1024)
-
+    home = Path(models_dir) / model_id
     try:
-        return huggingface_hub.snapshot_download(
-            repo(model_id),
-            cache_dir=str(Path(models_dir)),
-            allow_patterns=FILES,
-            tqdm_class=_reporter(on_progress, should_cancel, expected),
-            max_workers=4,
-        )
-    except Cancelled:
+        return str(hub.download(repo(model_id), home, FILES,
+                                on_progress=on_progress, should_cancel=should_cancel))
+    except (Cancelled, CoreError):
         raise
     except Exception as e:
-        # Отмена может вернуться завёрнутой: библиотека качает в потоках.
-        if _cancelled_inside(e):
-            raise Cancelled(stage="download") from e
-        raise CoreError(Code.DOWNLOAD_FAILED, model=model_id, reason=repr(e)) from e
-
-
-def _cancelled_inside(error: BaseException) -> bool:
-    seen = 0
-    while error is not None and seen < 10:
-        if isinstance(error, Cancelled):
-            return True
-        error = error.__cause__ or error.__context__
-        seen += 1
-    return False
-
+        reason = "network" if hub.is_network_error(e) else repr(e)
+        raise CoreError(Code.DOWNLOAD_FAILED, model=model_id, reason=reason) from e
