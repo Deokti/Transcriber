@@ -6,7 +6,8 @@ from app.bridge.profile import ProfileBridge
 from app.bridge.queue import QueueBridge
 from app.bridge.run import RunBridge
 from app.bridge.shell import ShellBridge
+from app.bridge.storage import StorageBridge
 from app.bridge.settings import SettingsBridge
 
 __all__ = ["DepsBridge", "EnvBridge", "ProfileBridge", "QueueBridge", "RunBridge",
-           "SettingsBridge", "ShellBridge"]
+           "SettingsBridge", "ShellBridge", "StorageBridge"]

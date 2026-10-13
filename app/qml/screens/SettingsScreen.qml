@@ -10,7 +10,10 @@ import "../components"
 Item {
     id: screen
 
-    signal back()
+    property string origin: "main"
+
+    signal home()
+    signal navigate(string name)
 
     property string pickerTarget: ""
 
@@ -24,8 +27,22 @@ Item {
         }
     }
 
+    ServiceBar {
+        id: bar
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        current: "settings"
+        origin: screen.origin
+        onHome: screen.home()
+        onNavigate: function (name) { screen.navigate(name) }
+    }
+
     ColumnLayout {
-        anchors.fill: parent
+        anchors.top: bar.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
         anchors.margins: Theme.padScreen
         spacing: Theme.gapPanels
 
@@ -33,11 +50,6 @@ Item {
             Layout.fillWidth: true
             spacing: Theme.gapButtons
 
-            AppButton {
-                text: "‹  " + I18n.strings["action.back"]
-                flat_: true
-                onClicked: screen.back()
-            }
             SectionTitle {
                 text: I18n.strings["settings.title"]
                 font.pixelSize: Theme.fontSection

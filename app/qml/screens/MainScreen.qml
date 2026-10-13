@@ -13,7 +13,7 @@ import "../components"
 Item {
     id: screen
 
-    signal openSettings()
+    signal navigate(string name)
 
     // Очередь живёт в мосте: окно её показывает, но не хранит.
     readonly property bool hasFiles: Queue.count > 0
@@ -105,15 +105,8 @@ Item {
 
                 Item { Layout.fillWidth: true }
 
-                // Экраны «Хранилище» и «Диагностика» ещё не написаны — кнопки
-                // вернутся вместе с ними (M4). Кнопка, ведущая в никуда,
-                // хуже её отсутствия.
-                // AppButton { text: I18n.strings["nav.storage"]; flat_: true }
-                // AppButton { text: I18n.strings["nav.diagnostics"]; flat_: true }
-                AppButton {
-                    text: I18n.strings["nav.settings"]
-                    flat_: true
-                    onClicked: screen.openSettings()
+                NavLinks {
+                    onNavigate: function (name) { screen.navigate(name) }
                 }
             }
         }

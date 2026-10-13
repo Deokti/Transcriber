@@ -20,11 +20,11 @@ QtObject {
         return tr("lang." + code, code)
     }
 
-    // «large-v3 · Все языки · 2.9 ГБ · не скачана»
+    // «large-v3 · Все языки · 2,9 ГБ · не скачана»
     function modelText(entry) {
         const langs = entry.languages === "en" ? I18n.strings["model.enOnly"]
                                                : I18n.strings["model.multi"]
-        const size = (entry.size_mb / 1024).toFixed(1) + " " + I18n.strings["unit.gb"]
+        const size = decimal(entry.size_mb / 1024, 1) + " " + I18n.strings["unit.gb"]
         const state = entry.downloaded ? "" : " · " + I18n.strings["model.notDownloaded"]
         return entry.id + " · " + langs + " · " + size + state
     }
@@ -65,7 +65,7 @@ QtObject {
     function fileSize(bytes) {
         const kb = (bytes || 0) / 1024
         if (kb >= 1024 * 1024)
-            return (kb / 1024 / 1024).toFixed(1) + " " + I18n.strings["unit.gb"]
+            return decimal(kb / 1024 / 1024, 1) + " " + I18n.strings["unit.gb"]
         if (kb >= 1024)
             return Math.round(kb / 1024) + " " + I18n.strings["unit.mb"]
         return Math.round(kb) + " " + I18n.strings["unit.kb"]
@@ -133,6 +133,41 @@ QtObject {
     }
 
     // «…\Лекции\Готовое» — человеку нужна папка, а не полный путь
+    // День словами: «12 сентября», а если сегодня — «сегодня». Месяц по
+    // правилам языка интерфейса: Qt сам ставит его в нужный падеж.
+    // Дробное число по правилам языка интерфейса: «2,9» по-русски, «2.9»
+    // по-английски. toFixed ставит точку всегда, и в русском тексте она режет глаз.
+    function decimal(value, digits) {
+        return Number(value || 0).toLocaleString(Qt.locale(I18n.language), "f", digits)
+    }
+
+    function day(iso) {
+        if (!iso)
+            return ""
+        const when = new Date(iso)
+        if (when.toDateString() === new Date().toDateString())
+            return I18n.strings["date.today"]
+        return Qt.locale(I18n.language).toString(when, "d MMMM")
+    }
+
+    // Число со словом в нужной форме: «1 файл», «3 файла», «5 файлов».
+    // forms — «один|несколько|много» через черту; у английского вторая и
+    // третья совпадают.
+    function plural(n, forms) {
+        const words = String(forms || "").split("|")
+        const ten = n % 10, hundred = n % 100
+        let index = 2
+        if (I18n.language === "ru") {
+            if (ten === 1 && hundred !== 11)
+                index = 0
+            else if (ten >= 2 && ten <= 4 && (hundred < 12 || hundred > 14))
+                index = 1
+        } else {
+            index = n === 1 ? 0 : 1
+        }
+        return n + " " + (words[index] || words[words.length - 1] || "")
+    }
+
     function folderOf(path) {
         const text = String(path || "")
         const cut = Math.max(text.lastIndexOf("/"), text.lastIndexOf("\\"))

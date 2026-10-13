@@ -15,7 +15,7 @@ from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
 
 from app.bridge import (DepsBridge, EnvBridge, ProfileBridge, QueueBridge,
-                        RunBridge, SettingsBridge, ShellBridge)
+                        RunBridge, SettingsBridge, ShellBridge, StorageBridge)
 from app.i18n import I18n
 from core import platform
 from core.version import VERSION
@@ -154,7 +154,7 @@ def _watch_qml(engine: QQmlApplicationEngine, show) -> QFileSystemWatcher:
     return watcher
 
 
-def connect_bridges(settings, env, run, i18n) -> None:
+def connect_bridges(settings, env, run, i18n, storage=None) -> None:
     """Кто кого будит: связи между мостами.
 
     Отдельной функцией, потому что окно — не единственный, кто эти мосты
@@ -167,6 +167,12 @@ def connect_bridges(settings, env, run, i18n) -> None:
     # скачаться модель, а опрос делается по требованию: без этой строки блок
     # «Готово к работе» продолжает звать «не скачанной» ту, что уже на диске.
     run.finished.connect(env.refresh)
+
+    if storage is not None:
+        # Пока идёт работа, удалять модели нельзя — «Хранилище» должно узнать,
+        # что работа началась. А после неё на диске могла появиться модель.
+        run.started.connect(storage.changed)
+        run.finished.connect(storage.refresh)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -229,10 +235,11 @@ def main(argv: list[str] | None = None) -> int:
     run = RunBridge(settings, queue, profile)
     shell = ShellBridge()
     deps = DepsBridge(env)
+    storage = StorageBridge(settings, env, working=lambda: run.running)
     i18n = I18n(ui_lang or settings.language)
-    connect_bridges(settings, env, run, i18n)
+    connect_bridges(settings, env, run, i18n, storage)
 
-    _BRIDGES.extend([settings, env, profile, queue, run, shell, deps, i18n])
+    _BRIDGES.extend([settings, env, profile, queue, run, shell, deps, storage, i18n])
 
     engine = QQmlApplicationEngine()
     engine.addImportPath(str(QML_DIR))
@@ -246,6 +253,7 @@ def main(argv: list[str] | None = None) -> int:
     context.setContextProperty("Run", run)
     context.setContextProperty("Shell", shell)
     context.setContextProperty("Deps", deps)
+    context.setContextProperty("Storage", storage)
     def show(screen: str = "") -> None:
         screen = screen or start_screen
         if screen:
@@ -276,6 +284,7 @@ def main(argv: list[str] | None = None) -> int:
     # здесь — страховка на случай выхода другим путём.
     run.shutdown()
     deps.shutdown()
+    storage.shutdown()
     queue.shutdown()
     return code
 

@@ -9,6 +9,16 @@ Window {
     id: root
 
     property string screen: "main"
+    // С какого рабочего экрана ушли на служебные — туда и вернёт кнопка
+    // слева в полосе. Между служебными ходят напрямую, и это место не
+    // теряется: после «Хранилища» и «Настроек» результат по-прежнему ждёт.
+    property string origin: "main"
+
+    function go(name) {
+        if (screen === "main" || screen === "result")
+            origin = screen
+        screen = name
+    }
     // Закрыть окно посреди работы — то же, что «Отменить всё»: сперва ядро
     // спасает посчитанное, и только потом окно уходит.
     property bool closing: false
@@ -34,13 +44,23 @@ Window {
     MainScreen {
         anchors.fill: parent
         visible: root.screen === "main"
-        onOpenSettings: root.screen = "settings"
+        onNavigate: function (name) { root.go(name) }
+    }
+
+    StorageScreen {
+        anchors.fill: parent
+        visible: root.screen === "storage"
+        origin: root.origin
+        onHome: root.screen = root.origin
+        onNavigate: function (name) { root.go(name) }
     }
 
     SettingsScreen {
         anchors.fill: parent
         visible: root.screen === "settings"
-        onBack: root.screen = "main"
+        origin: root.origin
+        onHome: root.screen = root.origin
+        onNavigate: function (name) { root.go(name) }
     }
 
     ProgressScreen {
@@ -53,6 +73,7 @@ Window {
         anchors.fill: parent
         visible: root.screen === "result"
         onAgain: root.screen = "main"
+        onNavigate: function (name) { root.go(name) }
     }
 
     onClosing: function (close) {

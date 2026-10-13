@@ -13,6 +13,7 @@ Item {
     id: screen
 
     signal again()
+    signal navigate(string name)
 
     readonly property var results: Run.results
     readonly property var summary: Run.summary
@@ -89,7 +90,7 @@ Item {
         if (item.words)
             parts.push(I18n.strings["result.words"].arg(item.words))
         if (item.speed)
-            parts.push("×" + Number(item.speed).toFixed(1))
+            parts.push("×" + Fmt.decimal(item.speed, 1))
         if (item.spent)
             parts.push(I18n.strings["result.spent"].arg(Fmt.roughDuration(item.spent)))
         return parts.join(" · ")
@@ -137,11 +138,9 @@ Item {
 
                 Item { Layout.fillWidth: true }
 
-                // Экраны «Хранилище» и «Диагностика» ещё не написаны — кнопки
-                // вернутся вместе с ними (M4). Кнопка, ведущая в никуда,
-                // хуже её отсутствия.
-                // AppButton { text: I18n.strings["nav.storage"]; flat_: true }
-                // AppButton { text: I18n.strings["nav.diagnostics"]; flat_: true }
+                NavLinks {
+                    onNavigate: function (name) { screen.navigate(name) }
+                }
             }
         }
 

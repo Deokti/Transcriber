@@ -34,7 +34,7 @@ def start(*, theme: str | None = None, language: str = "ru", screen: str = "main
     from PySide6.QtQuickControls2 import QQuickStyle
 
     from app.bridge import (DepsBridge, EnvBridge, ProfileBridge, QueueBridge,
-                            RunBridge, SettingsBridge, ShellBridge)
+                            RunBridge, SettingsBridge, ShellBridge, StorageBridge)
     from app.i18n import I18n
     from core.version import VERSION
     from app.main import QML_DIR, _load_dev_fonts, connect_bridges
@@ -53,8 +53,9 @@ def start(*, theme: str | None = None, language: str = "ru", screen: str = "main
     run = RunBridge(settings, queue, task)
     shell = ShellBridge()
     deps = DepsBridge(env)
+    storage = StorageBridge(settings, env, working=lambda: run.running)
     i18n = I18n(language)
-    connect_bridges(settings, env, run, i18n)
+    connect_bridges(settings, env, run, i18n, storage)
 
     engine = QQmlApplicationEngine()
     engine.addImportPath(str(QML_DIR))
@@ -68,6 +69,7 @@ def start(*, theme: str | None = None, language: str = "ru", screen: str = "main
     context.setContextProperty("Run", run)
     context.setContextProperty("Shell", shell)
     context.setContextProperty("Deps", deps)
+    context.setContextProperty("Storage", storage)
     engine.setInitialProperties({"screen": screen})
     engine.load(QUrl.fromLocalFile(str(QML_DIR / "Main.qml")))
     assert engine.rootObjects(), "окно не загрузилось"
@@ -75,13 +77,13 @@ def start(*, theme: str | None = None, language: str = "ru", screen: str = "main
     # Движок держим от сборщика мусора: без ссылки окно исчезнет вместе с ним.
     window = engine.rootObjects()[0]
     # Держим от сборщика мусора: без ссылок окно исчезнет вместе с ними.
-    window._keep = (engine, env, task, queue, run, shell, deps)
+    window._keep = (engine, env, task, queue, run, shell, deps, storage)
 
     # Мосты кладём сюда: тесту, который дёргает окно, нужно потом спросить
     # ядро — что из этого доехало. Возвращаемая четвёрка не меняется, её
     # разбирают все прежние тесты.
     bridges.update(settings=settings, env=env, task=task, queue=queue,
-                   run=run, shell=shell, deps=deps, i18n=i18n)
+                   run=run, shell=shell, deps=deps, storage=storage, i18n=i18n)
     return app, window, settings, i18n
 
 
