@@ -101,6 +101,10 @@ class StorageBridge(QObject):
     # --- опрос -----------------------------------------------------------
     @Slot()
     def refresh(self) -> None:
+        self._data = self._collect()
+        self.changed.emit()
+
+    def _collect(self) -> dict:
         raw = self._settings.raw
         paths = platform.paths().ensure()
         models_dir = raw.resolve_models_dir()
@@ -125,7 +129,7 @@ class StorageBridge(QObject):
                   "date": _date(tool) if ours else ""}
 
         temp_files = [p for p in paths.temp.iterdir() if p.is_file()] if paths.temp.is_dir() else []
-        self._data = {
+        return {
             "dataDir": str(paths.root),
             "modelsDir": str(models_dir),
             "foreign": storage.foreign_models(models_dir),
@@ -135,11 +139,13 @@ class StorageBridge(QObject):
             "tempBytes": float(storage.size_of(paths.temp)),
             "tempCount": len(temp_files),
         }
-        self.changed.emit()
 
     def _get(self, key, default=None):
+        # Первое чтение — молча, без «изменилось»: оно случается посреди
+        # вычисления привязки, и сигнал отсюда делал привязку зависимой от
+        # самой себя — Qt видел петлю и бросал досчитывать строку.
         if not self._data:
-            self.refresh()
+            self._data = self._collect()
         return self._data.get(key, default)
 
     # --- что видно окну ----------------------------------------------------
