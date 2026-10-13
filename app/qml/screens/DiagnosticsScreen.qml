@@ -301,7 +301,6 @@ Item {
                                 Layout.alignment: Qt.AlignRight
                                 visible: ffmpegRow.missing && !Deps.busy
                                 primary: true
-                                large: false             // строка таблицы: высота как у соседних
                                 text: ffmpegRow.failed_ ? I18n.strings["storage.retry"]
                                                         : I18n.strings["storage.download"]
                                 onClicked: Deps.getFfmpeg()
@@ -345,7 +344,6 @@ Item {
                                 Layout.alignment: Qt.AlignRight
                                 visible: gpuRow.c.code === "GPU_OLD_DRIVER" || gpuRow.c.code === "GPU_SILENT"
                                 primary: true
-                                large: false             // строка таблицы: высота как у соседних
                                 text: I18n.strings["diag.driverHelp"]
                                 onClicked: Qt.openUrlExternally(screen.driverUrl)
                             }
@@ -353,7 +351,6 @@ Item {
                                 Layout.alignment: Qt.AlignRight
                                 visible: gpuRow.c.code === "GPU_NO_CUDA" && gpuRow.d.reason === "NO_CUDA_IN_BUILD"
                                 primary: true
-                                large: false             // строка таблицы: высота как у соседних
                                 text: I18n.strings["diag.getBuild"]
                                 onClicked: Qt.openUrlExternally(screen.releasesUrl)
                             }
@@ -397,7 +394,6 @@ Item {
                                 Layout.alignment: Qt.AlignRight
                                 visible: modelsRow.c.code !== "MODELS_READY" && !modelsRow.loading
                                 primary: true
-                                large: false             // строка таблицы: высота как у соседних
                                 text: I18n.strings["storage.download"]
                                 onClicked: Storage.downloadModel(modelsRow.d.chosen)
                             }
