@@ -6,9 +6,15 @@
 состоянием в этой строке уезжали влево от столбца. Таблица переставала
 читаться столбиком, а заметить это можно было только глазами.
 
+Вторая ошибка того же рода: в узком окне раскладка ужимала не только
+описание, но и столбцы размера и состояния — в строке с длинным описанием
+сильнее, чем в короткой. При минимальной ширине окна столбцы снова шли
+лесенкой.
+
 Проверяем числом: левый край ячейки размера одинаков в шапке и во всех
-строках. ffmpeg подставляем системный — именно у него кнопок нет, — чтобы
-не зависеть от того, что стоит на машине.
+строках — в обычном окне и в самом узком, какое разрешает программа.
+ffmpeg подставляем системный — именно у него кнопок нет, — чтобы не
+зависеть от того, что стоит на машине.
 """
 import sys
 
@@ -40,17 +46,23 @@ def check() -> None:
     settle()
 
     root = window.contentItem()
-    cells = [item for item in walk(root)
-             if item.objectName() == "sizeCell" and item.isVisible()]
-    if len(cells) < 3:
-        done(app, False, f"нашёл ячеек размера: {len(cells)} — экран не тот, что ждали")
-        return
-
-    lefts = {round(item.mapToItem(root, QPointF(0, 0)).x()) for item in cells}
-    if len(lefts) == 1:
-        done(app, True, f"столбец размеров ровный: {len(cells)} ячеек на x={lefts.pop()}")
-    else:
-        done(app, False, f"столбец размеров разъехался: левые края {sorted(lefts)}")
+    report = []
+    for width in (1080, 900):           # 900 — самое узкое окно (Theme.minWidth)
+        # Меняем область содержимого, а не окно: без экрана окну не приходит
+        # событие изменения размера
+        root.setProperty("width", width)
+        settle()
+        cells = [item for item in walk(root)
+                 if item.objectName() == "sizeCell" and item.isVisible()]
+        if len(cells) < 3:
+            done(app, False, f"нашёл ячеек размера: {len(cells)} — экран не тот, что ждали")
+            return
+        lefts = sorted({round(item.mapToItem(root, QPointF(0, 0)).x()) for item in cells})
+        if len(lefts) != 1:
+            done(app, False, f"окно {width}: столбец размеров разъехался, левые края {lefts}")
+            return
+        report.append(f"{width}: x={lefts[0]}")
+    done(app, True, f"столбец размеров ровный, {len(cells)} ячеек ({'; '.join(report)})")
 
 
 QTimer.singleShot(300, check)

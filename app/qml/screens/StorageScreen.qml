@@ -61,7 +61,9 @@ Item {
 
     // --- строка таблицы ------------------------------------------------------
     // Колонки одинаковой ширины во всех строках: размер и состояние читаются
-    // столбиком, а не вразнобой.
+    // столбиком, а не вразнобой. У постоянных колонок наименьшая ширина равна
+    // обычной: в узком окне раскладка ужимает всё, что ей позволено, и
+    // строка с длинным описанием сдвигала бы их сильнее короткой.
     component TableRow: Rectangle {
         id: row
 
@@ -102,12 +104,11 @@ Item {
 
                 RowLayout {
                     spacing: 6
-                    Text {
+                    // Знаки рисованные, а не символы шрифта: «✓» и «✕» есть
+                    // не в каждом шрифте, и без замены выходит квадратик.
+                    StatusIcon {
                         visible: row.failed
-                        text: "✕"
-                        color: Theme.errorFg
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontBase
+                        level: "fail"
                     }
                     Text {
                         text: row.title
@@ -135,24 +136,38 @@ Item {
             Text {
                 objectName: "sizeCell"       // по нему тест сверяет столбец
                 Layout.preferredWidth: 90
+                Layout.minimumWidth: 90
                 text: row.size
                 color: Theme.textSecondary
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontBase
             }
-            Text {
+            RowLayout {
                 Layout.preferredWidth: 130
-                text: (row.ok ? "✓  " : "") + row.state_
-                color: row.stateColor
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontBase
-                elide: Text.ElideRight
+                Layout.minimumWidth: 130
+                Layout.maximumWidth: 130
+                spacing: 7
+                CheckMark {
+                    visible: row.ok
+                    width: 11
+                    height: 11
+                    color: row.stateColor
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: row.state_
+                    color: row.stateColor
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontBase
+                    elide: Text.ElideRight
+                }
             }
             // Колонка кнопок держит ширину и пустой: раскладка сжимает
             // RowLayout без видимых детей в ноль, и размер с состоянием
             // в такой строке уезжали влево от столбца.
             Item {
                 Layout.preferredWidth: screen.actionWidth * 2 + Theme.gapButtons
+                Layout.minimumWidth: screen.actionWidth * 2 + Theme.gapButtons
                 implicitHeight: actionsRow.implicitHeight
 
                 RowLayout {
@@ -312,6 +327,7 @@ Item {
                             Text {
                                 objectName: "sizeCell"
                                 Layout.preferredWidth: 90
+                                Layout.minimumWidth: 90
                                 text: I18n.strings["storage.colSize"]
                                 color: Theme.textMuted
                                 font.family: Theme.fontFamily
@@ -319,12 +335,16 @@ Item {
                             }
                             Text {
                                 Layout.preferredWidth: 130
+                                Layout.minimumWidth: 130
                                 text: I18n.strings["storage.colState"]
                                 color: Theme.textMuted
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fontSmall
                             }
-                            Item { Layout.preferredWidth: screen.actionWidth * 2 + Theme.gapButtons }
+                            Item {
+                                Layout.preferredWidth: screen.actionWidth * 2 + Theme.gapButtons
+                                Layout.minimumWidth: screen.actionWidth * 2 + Theme.gapButtons
+                            }
                         }
 
                         // --- ffmpeg --------------------------------------------
