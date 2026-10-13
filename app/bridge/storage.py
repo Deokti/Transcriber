@@ -111,7 +111,10 @@ class StorageBridge(QObject):
             info = catalog[item.id]
             rows.append({"id": item.id, "state": item.state, "bytes": float(item.bytes),
                          "sizeMb": info.size_mb, "multilingual": info.multilingual,
-                         "date": _date(item.path) if item.path else ""})
+                         "date": _date(item.path) if item.path else "",
+                         # откуда качать — чтобы подсказать адрес для ручной загрузки
+                         "repo": models.repo(item.id),
+                         "home": str(Path(models_dir) / item.id)})
 
         # ffmpeg считаем своим, только если он лежит в нашей папке: системный
         # ставил человек, и удалять его не нам.

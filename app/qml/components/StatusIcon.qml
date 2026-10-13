@@ -3,7 +3,8 @@ import QtQuick.Shapes
 import Transcriber
 import "."
 
-// Знак итога проверки: галочка, треугольник, «i» в круге, крестик.
+// Знак итога проверки: галочка, треугольник, «i» в круге, крестик —
+// и стрелка «скачать» для того, чего ещё нет на диске.
 //
 // Рисуем сами, а не символами шрифта: «⚠» на Windows подменяется цветной
 // эмодзи и перестаёт следовать за темой. Знак и цвет идут вместе — по
@@ -11,14 +12,16 @@ import "."
 Item {
     id: icon
 
-    property string level: "ok"        // ok · note · warn · fail
+    property string level: "ok"        // ok · note · warn · fail · download
 
     readonly property color tone: level === "ok" ? Theme.okFg
                                 : level === "fail" ? Theme.errorFg
+                                : level === "download" ? Theme.accent
                                 : Theme.warnFg
     readonly property bool warn: level === "warn"
     readonly property bool note: level === "note"
     readonly property bool fail: level === "fail"
+    readonly property bool download: level === "download"
 
     implicitWidth: 16
     implicitHeight: 16
@@ -83,6 +86,32 @@ Item {
         width: 1.5; height: 1.6; radius: 0.75
         color: icon.tone
     }
+    // скачать: стрелка вниз над чертой
+    Rectangle {
+        visible: icon.download
+        x: 7.25; y: 1
+        width: 1.5; height: 10; radius: 0.75
+        color: icon.tone
+    }
+    Repeater {
+        model: [45, -45]
+        Rectangle {
+            required property int modelData
+            visible: icon.download
+            x: 7.25 + (modelData > 0 ? 2.1 : -2.1); y: 5.6
+            width: 1.5; height: 6.2; radius: 0.75
+            rotation: modelData
+            antialiasing: true
+            color: icon.tone
+        }
+    }
+    Rectangle {
+        visible: icon.download
+        x: 1.5; y: 14
+        width: 13; height: 1.5; radius: 0.75
+        color: icon.tone
+    }
+
     Repeater {
         model: [45, -45]
         Rectangle {

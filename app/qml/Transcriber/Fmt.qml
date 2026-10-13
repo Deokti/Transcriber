@@ -62,15 +62,17 @@ QtObject {
         return s + " " + I18n.strings["unit.sec"]
     }
 
+    // Между числом и единицей — неразрывный пробел: «3,1» в конце строки
+    // и «ГБ» в начале следующей читаются как два разных числа.
     function fileSize(bytes) {
         const kb = (bytes || 0) / 1024
         // «214 ГБ», а не «214,0 ГБ»: у больших чисел десятые — шум
         const gb = kb / 1024 / 1024
         if (gb >= 1)
-            return decimal(gb, gb >= 100 ? 0 : 1) + " " + I18n.strings["unit.gb"]
+            return decimal(gb, gb >= 100 ? 0 : 1) + " " + I18n.strings["unit.gb"]
         if (kb >= 1024)
-            return Math.round(kb / 1024) + " " + I18n.strings["unit.mb"]
-        return Math.round(kb) + " " + I18n.strings["unit.kb"]
+            return Math.round(kb / 1024) + " " + I18n.strings["unit.mb"]
+        return Math.round(kb) + " " + I18n.strings["unit.kb"]
     }
 
     // «Дорожка 2 · Комментарий · 2 кан. · aac» — из того, что сказал ffprobe.

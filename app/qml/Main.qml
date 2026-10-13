@@ -41,6 +41,21 @@ Window {
              : Settings.isDark
     }
 
+    // Нет ffmpeg или ни одной модели — сначала «Первый запуск»: объяснить,
+    // что скачать и сколько это весит, а не встречать пустым главным экраном,
+    // который упадёт на первой же записи. Только при открытии окна: с
+    // экраном, на который ушли сами, не спорим.
+    Component.onCompleted: {
+        if (root.screen === "main" && (!Env.ffmpegOk || Env.downloadedModels.length === 0))
+            root.screen = "setup"
+    }
+
+    SetupScreen {
+        anchors.fill: parent
+        visible: root.screen === "setup"
+        onDone: root.screen = "main"
+    }
+
     MainScreen {
         anchors.fill: parent
         visible: root.screen === "main"
