@@ -263,19 +263,47 @@ def cuda_device_count() -> int:
         return 0
 
 
-def gpu_name() -> str:
-    """Название видеокарты, как его показывает драйвер. Пусто — не спросили."""
+#: Самый старый драйвер NVIDIA, с которым работает CUDA 12 — на ней собран
+#: CTranslate2 4.x. Со старым драйвером видеокарта видна системе, но движку
+#: не отвечает, и человек не понимает почему: диагностика должна это назвать.
+CUDA_MIN_DRIVER = {"windows": (527, 41), "linux": (525, 60)}
+
+
+def gpu_info() -> tuple[str, str]:
+    """Название видеокарты и версия драйвера, как их показывает драйвер.
+
+    Пустые строки — драйвера NVIDIA нет или он не ответил.
+    """
     if system_name() == "macos":
-        return ""
+        return "", ""
     import subprocess
 
     try:
         result = subprocess.run(
-            ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+            ["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"],
             capture_output=True, text=True, timeout=5, **quiet_child())
     except (OSError, subprocess.SubprocessError):
-        return ""
-    return result.stdout.strip().splitlines()[0].strip() if result.returncode == 0 else ""
+        return "", ""
+    lines = result.stdout.strip().splitlines() if result.returncode == 0 else []
+    if not lines:
+        return "", ""
+    name, _, driver = lines[0].rpartition(",")
+    return (name.strip(), driver.strip()) if name else (driver.strip(), "")
+
+
+def gpu_name() -> str:
+    """Название видеокарты. Пусто — не спросили."""
+    return gpu_info()[0]
+
+
+def driver_too_old(driver: str) -> bool:
+    """Драйвер старше, чем нужно CUDA 12. Неразобранная версия — не повод пугать."""
+    floor = CUDA_MIN_DRIVER.get(system_name())
+    try:
+        found = tuple(int(part) for part in driver.split(".")[:2])
+    except ValueError:
+        return False
+    return bool(floor and found) and found < floor
 
 
 def devices() -> list[Device]:
