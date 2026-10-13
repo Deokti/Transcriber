@@ -4,9 +4,9 @@ import QtQuick.Controls.Basic
 import Transcriber
 import "."
 
-// «Сохранить пресет»: имя и кнопка. Имя уже занято — говорим, что
-// сохраним поверх, и даём удалить: иначе ненужный пресет было бы не убрать
-// без проводника.
+// «Сохранить пресет»: имя и кнопка, а ниже — сохранённые пресеты, у
+// каждого своё «Удалить». Раньше удалить можно было, только вписав имя
+// существующего пресета, — кнопку никто не находил.
 Popup {
     id: popup
 
@@ -101,20 +101,72 @@ Popup {
             wrapMode: Text.WordWrap
         }
 
+        // --- сохранённые ----------------------------------------------------
+        Text {
+            Layout.topMargin: 4
+            visible: Task.presets.length > 0
+            text: I18n.strings["preset.saved"]
+            color: Theme.textMuted
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSmall
+        }
+        ColumnLayout {
+            Layout.fillWidth: true
+            visible: Task.presets.length > 0
+            spacing: 0
+
+            Repeater {
+                model: Task.presets
+
+                delegate: Rectangle {
+                    id: presetRow
+                    required property string modelData
+
+                    Layout.fillWidth: true
+                    implicitHeight: Theme.hRowButton + 10
+                    color: "transparent"
+
+                    Rectangle {
+                        anchors.top: parent.top
+                        width: parent.width
+                        height: 1
+                        color: Theme.rowDivider
+                    }
+                    RowLayout {
+                        anchors.fill: parent
+                        spacing: Theme.gapButtons
+                        // Щелчок по имени подставляет его в поле — пересохранить
+                        // пресет с текущими настройками
+                        Text {
+                            Layout.fillWidth: true
+                            text: presetRow.modelData
+                            color: Theme.text
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontBase
+                            elide: Text.ElideRight
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: field.text = presetRow.modelData
+                            }
+                        }
+                        ConfirmButton {
+                            implicitHeight: Theme.hRowButton
+                            flat_: true
+                            text: I18n.strings["preset.remove"]
+                            confirmText: I18n.strings["storage.confirm"]
+                            onConfirmed: Task.removePreset(presetRow.modelData)
+                        }
+                    }
+                }
+            }
+        }
+
         RowLayout {
             Layout.fillWidth: true
             Layout.topMargin: 4
             spacing: Theme.gapButtons
 
-            ConfirmButton {
-                visible: popup.taken
-                text: I18n.strings["preset.remove"]
-                confirmText: I18n.strings["storage.confirm"]
-                onConfirmed: {
-                    Task.removePreset(popup.name)
-                    popup.close()
-                }
-            }
             Item { Layout.fillWidth: true }
             AppButton {
                 text: I18n.strings["action.cancel"]
