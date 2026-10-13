@@ -96,6 +96,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--delete-audio", action="store_true")
     p.add_argument("--move-audio", action="store_true", help="перенести WAV к исходнику")
     p.add_argument("--force", action="store_true", help="перезаписывать готовое")
+    p.add_argument("--keep-segments", action="store_true",
+                   help="оставить файл сегментов рядом с документом: другой формат "
+                        "потом соберётся без повторного распознавания")
     p.add_argument("--report", type=float, help="шаг отчёта о прогрессе, минут аудио")
     p.add_argument("--profile", help="взять настройки из файла")
     p.add_argument("--save-profile", help="сохранить получившиеся настройки в файл")
@@ -161,6 +164,8 @@ def build_profile(args: argparse.Namespace) -> Profile:
         profile.output_dir = args.outdir
     if args.force:
         profile.force = True
+    if args.keep_segments:
+        profile.keep_segments = True
     if args.report:
         profile.progress_step_min = args.report
     if args.keep_audio:

@@ -214,6 +214,9 @@ def _reuse_segments(job: Job, ctx: RunContext) -> bool:
     for number, stage in enumerate((Stage.CHECK, Stage.EXPORT), 1):
         with _stage(ctx, stage, number, 2):
             STAGES[stage].run(job, ctx)
+    # Отдельной стадии уборки здесь нет, а просьба не оставлять сегменты
+    # касается и этого пути
+    cleanup.retire_segments(job, ctx)
     return True
 
 

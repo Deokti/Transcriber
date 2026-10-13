@@ -203,7 +203,8 @@ QtObject {
         case "EXPORT_DONE":
             return tr("log.EXPORT_DONE", "").arg(baseName(d.path))
         case "TEMP_DELETED":
-            return tr("log.TEMP_DELETED", "").arg(fileSize(d.size))
+        case "SEGMENTS_DELETED":
+            return tr("log." + code, "").arg(fileSize(d.size))
         case "MODEL_LOADING":
             return tr("log.MODEL_LOADING", "").arg(d.model || "").arg(deviceName(d.device))
         case "MODEL_READY":

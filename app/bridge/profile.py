@@ -152,6 +152,15 @@ class ProfileBridge(QObject):
     def setForce(self, value: bool) -> None:
         self._set("force", value)
 
+    @Property(bool, notify=changed)
+    def keepSegments(self) -> bool:
+        """Оставлять ли файл сегментов рядом с документом (решение D-17)."""
+        return self._profile.keep_segments
+
+    @Slot(bool)
+    def setKeepSegments(self, value: bool) -> None:
+        self._set("keep_segments", value)
+
     @Property(str, notify=changed)
     def tempAction(self) -> str:
         return self._profile.temp_action

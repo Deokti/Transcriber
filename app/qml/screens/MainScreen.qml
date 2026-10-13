@@ -682,7 +682,8 @@ Item {
                                     I18n.strings["advanced.sensitivity"].arg(
                                         Fmt.tr("sensitivity." + Task.sensitivity, Task.sensitivity)),
                                     Fmt.tr("temp." + Task.tempAction, Task.tempAction)
-                                ].join(" · ")
+                                ].concat(Task.keepSegments ? [I18n.strings["advanced.segmentsKept"]] : [])
+                                 .join(" · ")
                             color: Theme.textMuted
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSmall
@@ -785,6 +786,22 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: Theme.gapLabel
+
+                            CheckField {
+                                enabled: !screen.audioOnly
+                                text: I18n.strings["advanced.keepSegments"]
+                                checked: Task.keepSegments
+                                onToggled: Task.setKeepSegments(checked)
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                Layout.bottomMargin: 6
+                                text: I18n.strings["advanced.keepSegmentsHint"]
+                                color: Theme.textMuted
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSmall
+                                wrapMode: Text.WordWrap
+                            }
 
                             CheckField {
                                 enabled: !screen.audioOnly

@@ -233,7 +233,8 @@ Linux     ~/.local/share/Transcriber/
 
 ```
 lecture.mkv                 исходник
-lecture.segments.jsonl      источник истины (П-3)
+lecture.segments.jsonl      источник истины (П-3); после удачной работы
+                            убирается, если не просили оставить (D-17)
 lecture.txt / .docx / .md   документы
 lecture.srt                 субтитры
 ```

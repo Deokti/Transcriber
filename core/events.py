@@ -91,6 +91,7 @@ class Code:
     TEMP_DELETED = "TEMP_DELETED"
     TEMP_MOVED = "TEMP_MOVED"
     TEMP_MOVE_FAILED = "TEMP_MOVE_FAILED"
+    SEGMENTS_DELETED = "SEGMENTS_DELETED"      # файл сегментов убран, заголовок сохранён
 
     # очередь и отмена
     STOP_REQUESTED = "STOP_REQUESTED"          # остановиться после текущего файла

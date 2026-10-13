@@ -9,6 +9,9 @@
 (другая модель, другой язык, другой звук) — честно считаем заново: человек
 поменял настройку как раз затем, чтобы получить другой текст.
 
+Работает, когда файл сегментов оставлен: по умолчанию он после работы
+убирается (решение D-17), и тогда новый формат считается заново.
+
 Движок подставной и считает, сколько раз его просили распознать.
 """
 from __future__ import annotations
@@ -59,6 +62,7 @@ def run(tools, folder: Path, source: Path, fmt: str, model: str = "medium") -> J
     profile.model = model
     profile.formats = [fmt]
     profile.temp_action = TEMP_DELETE
+    profile.keep_segments = True       # из чего собирать новый формат
     profile.output_dir = str(folder / "готовое")
     profile.loudnorm = False
     job = Job(source=source, profile=profile)
