@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 
 from cli import messages
-from core import platform
+from core import formats, platform
 from core.asr.faster_whisper_backend import FasterWhisperBackend
 from core.deps import fetch
 from core.env import models
@@ -88,6 +88,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                    help="сохранить звуковой файл вместе с документом")
     p.add_argument("--audio-format", choices=[AUDIO_WAV16, AUDIO_WAV48, AUDIO_MP3, AUDIO_M4A],
                    help="формат звукового файла (по умолчанию wav16 — 16 кГц моно)")
+    p.add_argument("--format", dest="formats",
+                   help="форматы через запятую: " + ",".join(formats.ORDER)
+                        + " (по умолчанию txt)")
     p.add_argument("--layout", choices=[LAYOUT_TIMECODES, LAYOUT_PLAIN])
     p.add_argument("--keep-audio", action="store_true")
     p.add_argument("--delete-audio", action="store_true")
@@ -145,6 +148,13 @@ def build_profile(args: argparse.Namespace) -> Profile:
         profile.target = TARGET_BOTH
     if args.audio_format:
         profile.audio_format = args.audio_format
+    if args.formats:
+        chosen = [f.strip().lower() for f in args.formats.split(",") if f.strip()]
+        unknown = [f for f in chosen if f not in formats.SUPPORTED]
+        if unknown:
+            raise SystemExit(f"неизвестный формат: {', '.join(unknown)} "
+                             f"(есть: {', '.join(formats.ORDER)})")
+        profile.formats = chosen
     if args.layout:
         profile.layout = args.layout
     if args.outdir:

@@ -12,7 +12,7 @@ from app.bridge.settings import SettingsBridge
 from core import platform
 from core.env import languages, models
 from core.events import CoreError
-from core.formats import SUPPORTED as EXPORT_FORMATS
+from core.formats import ORDER as EXPORT_FORMATS
 from core.media import AUDIO_ORDER
 from core.media import ensure_tools, version
 
@@ -60,7 +60,7 @@ class EnvBridge(QObject):
             "languages": languages.codes(),
             "models": [dict(m.as_data(), downloaded=models.is_downloaded(m.id, models_dir))
                        for m in models.CATALOG],
-            "formats": sorted(EXPORT_FORMATS),
+            "formats": list(EXPORT_FORMATS),
             "audioFormats": list(AUDIO_ORDER),
         }
         # Тема, язык и папка результатов не требуют запуска ffmpeg/nvidia-smi.

@@ -23,6 +23,7 @@ Item {
     // язык и устройство ни при чём, и это должно быть видно: недоступное
     // выключено и объяснено, а не спрятано (правило 3 брифа).
     readonly property bool audioOnly: Task.target === "audio"
+    readonly property bool subtitles: Task.format === "srt" || Task.format === "vtt"
 
     // Числовые настройки — списком, а не полем ввода: у длины фрагмента и
     // числа потоков есть разумные значения, а опечатка вроде 300 секунд
@@ -531,6 +532,10 @@ Item {
                             ComboField {
                                 Layout.fillWidth: true
                                 visible: Task.needsText
+                                // Субтитр — это и есть сегмент со своим временем:
+                                // склеивать их в абзацы нельзя, и выбора тут нет.
+                                enabled_: !screen.subtitles
+                                hint: screen.subtitles ? I18n.strings["out.layout.subtitles"] : ""
                                 label: I18n.strings["out.layout"]
                                 model: [I18n.strings["out.layout.timecodes"],
                                         I18n.strings["out.layout.plain"]]

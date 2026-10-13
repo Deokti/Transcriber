@@ -1,13 +1,18 @@
-"""Сборка текстовых документов из сегментов.
+"""Текст (txt) и общая для документов склейка сегментов в абзацы.
 
-Полный набор форматов — этап M5. Здесь то, что нужно этапу M1: txt в двух
-видах оформления, чтобы повторить поведение прежнего скрипта.
+Два вида оформления (FR-18):
+
+- **по строкам с тайм-кодами** — сегмент на строку, «как есть», с началом и
+  концом. Самый честный вид: по нему видно, что и где распознано;
+- **связный текст** — сегменты склеены в абзацы, тайм-кодов нет. Для чтения
+  и для того, чтобы отдать текст дальше.
 """
 from __future__ import annotations
 
 from pathlib import Path
 
 from core.asr.base import Segment
+from core.profile import LAYOUT_PLAIN
 from core.timecode import stamp
 
 #: Пауза, после которой начинается новый абзац.
@@ -18,24 +23,13 @@ PARAGRAPH_CHARS = 900
 _SENTENCE_END = (".", "!", "?", "…")
 
 
-def write_timecoded(path: Path, segments: list[Segment], header: str = "") -> Path:
-    """Строка на сегмент: `[ЧЧ:ММ:СС.ммм --> ЧЧ:ММ:СС.ммм] текст`."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        if header:
-            f.write(f"# {header}\n\n")
-        for s in segments:
-            f.write(f"[{stamp(s.start)} --> {stamp(s.end)}] {s.text}\n")
-    return path
-
-
 def to_paragraphs(segments: list[Segment]) -> list[tuple[float, str]]:
     """Склеивает короткие куски в читаемые абзацы.
 
     Whisper режет речь на отрезки по пять-шесть секунд — читать такое тяжело.
     Границей абзаца считаем заметную паузу, конец предложения или накопленную
-    длину. Возвращаем время начала абзаца, чтобы по нему можно было прыгнуть
-    в нужное место записи.
+    длину. Возвращаем и время начала абзаца: документу оно не нужно, а тому,
+    кто ищет место в записи, — пригодится.
     """
     paragraphs: list[tuple[float, str]] = []
     current: list[str] = []
@@ -63,12 +57,21 @@ def to_paragraphs(segments: list[Segment]) -> list[tuple[float, str]]:
     return paragraphs
 
 
-def write_plain(path: Path, segments: list[Segment], header: str = "") -> Path:
-    """Связный текст абзацами, с тайм-кодом в начале каждого."""
+def write(path: Path, segments: list[Segment], *, layout: str,
+          title: str = "", meta: str = "") -> Path:
+    """Текстовый файл в выбранном оформлении."""
+    lines: list[str] = []
+    head = " | ".join(part for part in (title, meta) if part)
+    if head:
+        lines += [f"# {head}", ""]
+
+    if layout == LAYOUT_PLAIN:
+        for _started, paragraph in to_paragraphs(segments):
+            lines += [paragraph, ""]
+    else:
+        lines += [f"[{stamp(s.start)} --> {stamp(s.end)}] {s.text}" for s in segments]
+        lines.append("")
+
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        if header:
-            f.write(f"# {header}\n\n")
-        for started, text in to_paragraphs(segments):
-            f.write(f"[{stamp(started)}]\n{text}\n\n")
+    path.write_text("\n".join(lines), encoding="utf-8")
     return path
