@@ -132,6 +132,15 @@ Item {
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSmall
                 }
+                // Удалить — там же, где выбирают: выбрал пресет, рядом
+                // «Удалить». Искать удаление в окне «Сохранить» никто не стал бы.
+                ConfirmButton {
+                    visible: Task.preset !== ""
+                    flat_: true
+                    text: I18n.strings["preset.remove"]
+                    confirmText: I18n.strings["storage.confirm"]
+                    onConfirmed: Task.removePreset(Task.preset)
+                }
 
                 Item { Layout.fillWidth: true }
 

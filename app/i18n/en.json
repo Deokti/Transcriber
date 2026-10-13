@@ -259,7 +259,6 @@
   "preset.failed": "Could not save the preset — check that the data folder is writable.",
   "preset.replace": "Replace",
   "preset.remove": "Delete",
-  "preset.saved": "Saved presets",
   "advanced.keepSegments": "Keep the segments file next to the document",
   "advanced.keepSegmentsHint": "another format is assembled from it in a second, without recognising again; otherwise the file is removed after work",
   "advanced.segmentsKept": "keep segments",
